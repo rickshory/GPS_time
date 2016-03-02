@@ -10,26 +10,30 @@
 #include <util/delay.h>
 
 int main(void) {
+  // assure port B bit 0 starts out low	
+  PORTB &= ~(1<<PB0);
   // Set the bit 0 of port B as output
   DDRB |= (1<<PB0);
+  // assure port B bit 1 starts out low	
+  PORTB &= ~(1<<PB1);  
   // Set the bit 1 of port B as output
   DDRB |= (1<<PB1);
+  DDRB |= (1<<PB2); // Port B bit 2 output
   // wait 1 second for supply power to stabilize
   _delay_ms(1000);
   // simulate turning on power to GPS
   PORTB |= (1<<PB1);
   // wait 1 second for GPS power to stabilize
-  _delay_ms(1000);  
-  while(1) {    
-    // Turn led on by setting corresponding bit high in the PORTB register.
-    PORTB |= (1<<PB0);
-
+  _delay_ms(1000);
+  // simulate 200ms pulse to wake GPS
+  PORTB |= (1<<PB0); // on
+  _delay_ms(200);
+  PORTB &= ~(1<<PB0); // off
+  while(1) {   
+	  // for now, blink bit2 to show standby 
+    PORTB |= (1<<PB2);
     _delay_ms(1000);
-
-    // Turn led off by setting corresponding bit low in the PORTB register.
-    PORTB &= ~(1<<PB0);
-
+    PORTB &= ~(1<<PB2);
     _delay_ms(1000);
-
   }
 }
