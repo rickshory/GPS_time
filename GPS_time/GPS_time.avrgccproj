@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectVersion>5.0</ProjectVersion>
     <ProjectGuid>{e353b5ca-aad3-4e0f-ac87-33efd5eedaad}</ProjectGuid>
-    <avrdevice>ATmega1284P</avrdevice>
+    <avrdevice>ATtiny84A</avrdevice>
     <avrdeviceseries>none</avrdeviceseries>
     <OutputType>Executable</OutputType>
     <Language>C</Language>
@@ -21,6 +21,7 @@
     <AssemblyName>GPS_time</AssemblyName>
     <Name>GPS_time</Name>
     <RootNamespace>GPS_time</RootNamespace>
+    <avrtool />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <ToolchainSettings>
