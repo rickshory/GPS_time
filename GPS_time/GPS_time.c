@@ -76,7 +76,7 @@ int main(void)
 	SREG |= (1<<7);
 	
 	// for testing, wait here till bit set by interrupt
-	while(Prog_status.gps_Request_Active == 0);
+//	while(Prog_status.gps_Request_Active == 0);
 	// continue on from here
 	// wait 1 sec in case anything needs to stabilize
 	_delay_ms(1000);
