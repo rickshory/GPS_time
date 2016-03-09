@@ -8,6 +8,7 @@
 #define F_CPU 8000000UL
 #include <avr/io.h>
 #include <util/delay.h>
+#include <avr/interrupt.h>
 
 //pins by package
 //    PDIP QFN
@@ -25,6 +26,7 @@
 // PB3  4  13
 
 #define LED PA3
+#define TEST_LED PB0
 
 #define TIME_REQ PB2
 #define INIT_TIME PB7
@@ -55,6 +57,10 @@ static volatile union Prog_status // Program status bit flags
 
 int main(void)
 {
+	// set up test blinker
+	set_output(DDRB, TEST_LED);
+	output_low(PORTB, TEST_LED);
+	
 	// assure time-request signal from main starts high
 	set_input(DDRB, TIME_REQ); // set as input
 	output_high(PORTB, TIME_REQ); // write to the port bit to enable the pull-up resistor
@@ -73,8 +79,8 @@ int main(void)
 	// Enable the INT0 interrupt
 	GIMSK |= (1<<6);
 	// set the global interrupt enable bit.
-	SREG |= (1<<7);
-	
+	sei();
+	_delay_ms(1000);
 	// for testing, wait here till bit set by interrupt
 //	while(Prog_status.gps_Request_Active == 0);
 	// continue on from here
@@ -102,6 +108,13 @@ int main(void)
 
 ISR(INT0_vect)
 {
+	// not supposed to do this kind of thing inside an ISR, but this
+	// is to see if the ISR is ever entered
+	output_high(PORTB, TEST_LED);
+	_delay_ms(500);
+	output_low(PORTB, TEST_LED);
+//	_delay_ms(500);
+	
 	// if the Input Sense is to detect a low level
 	if ((MCUCR & ((1<<ISC01)|(1<<ISC00))) == 0)
 	{
