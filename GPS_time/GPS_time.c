@@ -72,7 +72,7 @@ int main(void)
 	while(1) {
 		_delay_ms(1000);
 		// wait for TIME_REQ to go low
-		while(PINB2 == 1) { // blink slow
+		while((PINB & ((1<<TIME_REQ))) != 0) { // blink slow
 			_delay_ms(1000);
 			output_high(PORTA, LED);
 			_delay_ms(1000);
@@ -91,7 +91,7 @@ int main(void)
 		output_low(PORTA, PULSE_GPS);
 		_delay_ms(1000);
 		// wait for TIME_REQ to go high
-		while(PINB2 == 0) { // blink fast
+		while((PINB & ((1<<TIME_REQ))) == 0) { // blink fast
 			_delay_ms(500);
 			output_high(PORTA, LED);
 			_delay_ms(500);
