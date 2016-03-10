@@ -9,6 +9,7 @@
 #include <avr/io.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
+#include <avr/sleep.h>
 
 //pins by package
 //    PDIP QFN
@@ -31,6 +32,8 @@
 #define INIT_TIME PB7
 #define GPS_PWR_ENAB PA7
 #define PULSE_GPS PA1
+#define RX_GPS_NMEA PA2
+#define TX_SET_TIME PB1
 
 // Some macros that make the code more readable
 #define output_low(port,pin) port &= ~(1<<pin)
