@@ -106,7 +106,7 @@ int main(void)
     }
 }
 
-ISR(INT0_vect)
+ISR(EXT_INT0_vect)
 {
 	// not supposed to do this kind of thing inside an ISR, but this
 	// is to see if the ISR is ever entered
