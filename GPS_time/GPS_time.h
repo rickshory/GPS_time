@@ -8,13 +8,7 @@
 
 #ifndef GPS_TIME_H_
 #define GPS_TIME_H_
-#define _SFR_ASM_COMPAT 1  /* Not sure when/if this is needed */
-#define __SFR_OFFSET 0
-/*Without the second line, labels like PORTB resolve to their data space address value (0x36) instead of
- their I/O space address value (0x16).
-Essentially this subtracts 0x20 from the data space address so that it matches up with how we used the
- I/O ports in AVR studio's assembler.
-*/
+
 /*
  * Global register variables.
  */
