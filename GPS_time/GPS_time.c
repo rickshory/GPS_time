@@ -41,6 +41,10 @@
 #define set_input(portdir,pin) portdir &= ~(1<<pin)
 #define set_output(portdir,pin) portdir |= (1<<pin)
 
+// function prototypes
+void wait200ms(void);
+void wait1sec(void);
+
 static volatile union Prog_status // Program status bit flags
 {
     unsigned char status;
@@ -84,43 +88,54 @@ int main(void)
 	sei();
 	
 	while(1) {
-		_delay_ms(1000);
+		wait1sec();
 		// wait for interrupt to set flag high
 		while(Prog_status.gps_Request_Active == 0) { // blink slow
-			_delay_ms(1000);
+			wait1sec();
 			output_high(PORTA, LED);
-			_delay_ms(1000);
+			wait1sec();
 			output_low(PORTA, LED);
 		}
 		// INT0 interrupt has set flag high
 		// wait 1 sec in case anything needs to stabilize
-		_delay_ms(1000);
+		wait1sec();
 		// turn GPS power on
 		output_high(PORTA, GPS_PWR_ENAB);
 		// wait 1 sec to assure stable
-		_delay_ms(1000);
+		wait1sec();
 		// send 200ms pulse to GPS, to turn on
 		output_high(PORTA, PULSE_GPS);
-		_delay_ms(200);
+		wait1sec();
 		output_low(PORTA, PULSE_GPS);
 		_delay_ms(1000);
 		// wait for interrupt to set flag low
 		while(Prog_status.gps_Request_Active == 1) { // blink fast
-			_delay_ms(200);
+			wait200ms();
 			output_high(PORTA, LED);
-			_delay_ms(200);
+			wait200ms();
 			output_low(PORTA, LED);
 		}
 		// INT0 interrupt has set flag low
-		_delay_ms(1000);
+		wait1sec();
 		// send 200ms pulse to GPS, to turn off
 		output_high(PORTA, PULSE_GPS);
-		_delay_ms(200);
+		wait200ms();
 		output_low(PORTA, PULSE_GPS);
-		_delay_ms(1000); // wait for GPS to shut down
+		wait1sec(); // wait for GPS to shut down
 		// turn GPS power off
 		output_low(PORTA, GPS_PWR_ENAB);
 		// continue the main loop
+	}
+}
+
+void wait200ms(void){
+	_delay_ms(200);
+}
+
+void wait1sec(void){
+	uint8_t i;
+	for (i = 0; i < 5; i++)	{
+		wait200ms();
 	}
 }
 

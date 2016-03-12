@@ -5,7 +5,6 @@
  *  Author: Rick Shory
  */ 
 
-
 #ifndef GPS_TIME_H_
 #define GPS_TIME_H_
 
