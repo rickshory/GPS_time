@@ -63,6 +63,8 @@ static volatile union Prog_status // Program status bit flags
     };
 } Prog_status = {0};
 
+static volatile uint8_t bitCount;
+
 int main(void)
 {
 	
@@ -145,13 +147,15 @@ void wait1sec(void){
 
 void sendSetTimeCommand(void) {
 	// send the set-time command
-	// interrupt-driven, so happens concurrently with wait states
+	// interrupt-driven, so this fn initiates, then transmission happens concurrently with wait states
 	// message to send is in known buffer
 	
 	// set up 16-bit counter to time the RS-232 output
 	// will always be 9600 baud, and F_CPU = 8MHz, so numbers are hardwired
 	// can use input capture (IC..) reg to hold number because not using input capture mode
-	ICR1 = 833; // cycles for bit time
+//	ICR1 = 833; // cycles for 9600 baud bit time, no prescaler
+	ICR1 = 12500; // for testing at 0.1 sec per transition; use prescaler 64
+
 
 	// note that WGM1[3:0] is split over TCCR1A and TCCR1B
 	// TCCR1A – Timer/Counter1 Control Register A
@@ -189,12 +193,34 @@ void sendSetTimeCommand(void) {
 	
 	// use CS1[2:0]=0b001, clkI/O/1 (No prescaling)
 	// use WGM1[3:0] = 12 = 0b1100
-	TCCR1B = 0b00011001;
-	
+//	TCCR1B = 0b00011001; // use for 9600 baud
+// for testing use  CS1[2:0]=0b011, clkI/O/1 (prescaler 64)
+	TCCR1B = 0b00011011; // use for testing at 0.1 sec per transition (prescaler 64)
+	// TCCR1C – Timer/Counter1 Control Register C
+	// for compatibility with future devices, set to zero when TCCR1A is written
+	TCCR1C = 0;
+	// TIMSK1 – Timer/Counter Interrupt Mask Register 1
+	// (7:6 and 4:3 reserved)
+	// 5 ICIE1: Timer/Counter1, Input Capture Interrupt Enable
+	//  When this bit is written to one, and the I-flag in the Status Register is set (interrupts globally
+	//  enabled), the Timer/Countern Input Capture interrupt is enabled. The
+	//  corresponding Interrupt Vector (See “Interrupts” on page 66.) is executed when the
+	//  ICF1 Flag, located in TIFR1, is set.
+	// 2 OCIE1B: Timer/Counter1, Output Compare B Match Interrupt Enable (not used here)
+	// 1 OCIE1A: Timer/Counter1, Output Compare A Match Interrupt Enable (not used here)
+	// 0 TOIE1: Timer/Counter1, Overflow Interrupt Enable (not used here)
 	// see if following works: OC1A shared with MOSI used for programming
 	// set OC1A as output, PDIP pin 7, SOIC pin 16; PA6
 	DDRA |= (1<<CMD_OUT);
-	
+	bitCount = 0;
+	cli(); // temporarily disable interrupts
+	// set the counter to zero
+	TCNT1 = 0;
+	// enable Input Capture 1 (serving as Output Compare) interrupt
+	TIMSK1 = 0b00100000;
+	// clear the interrupt flag
+	TIFR1 &= ~(1<<ICF1);
+	sei(); // re-enable interrupts
 	
 }
 
@@ -231,4 +257,18 @@ ISR(EXT_INT0_vect)
 		GIFR |= (1<<INTF0);
 		GIMSK |= (1<<6);
 	}	
+}
+
+ISR(TIM1_CAPT_vect) {
+	// with Input Capture disabled, serves same purpose as Output Compare
+	// occurs when TCNT1 matches ICR1
+	
+	bitCount += 1;
+	if (bitCount > 6) { // for testing, only go 6 transitions
+		// disable this interrupt so the transmission stops
+		TIMSK1 &= ~(0b00100000);
+	}
+	// clear the flag so this interrupt can occur again
+	TIFR1 &= ~(1<<ICF1);
+	// for testing, counter is set to toggle output, and to auto clear on match
 }
