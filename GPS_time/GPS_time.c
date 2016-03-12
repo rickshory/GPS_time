@@ -71,17 +71,28 @@ int main(void)
 	output_low(PORTA, PULSE_GPS);
 	set_output(DDRA, PULSE_GPS);
 	set_input(DDRB, TIME_REQ);
-	set_output(DDRA, LED);	
+	set_output(DDRA, LED);
+	
+	// set up the external interrupt INT0
+	// clear interrupt flag; probably don't need to do this because flag is cleared on level interrupts
+	GIFR |= (1<<INTF0);
+	// Configure INT0 to trigger on level low
+	MCUCR &= ~((1<<ISC01)|(1<<ISC00));
+	// Enable the INT0 interrupt
+	GIMSK |= (1<<6);
+	// set the global interrupt enable bit.
+	sei();
+	
 	while(1) {
 		_delay_ms(1000);
-		// wait for TIME_REQ to go low
-		while((PINB & ((1<<TIME_REQ))) != 0) { // blink slow
+		// wait for interrupt to set flag high
+		while(Prog_status.gps_Request_Active == 0) { // blink slow
 			_delay_ms(1000);
 			output_high(PORTA, LED);
 			_delay_ms(1000);
 			output_low(PORTA, LED);
 		}
-		// TIME_REQ has gone low
+		// INT0 interrupt has set flag high
 		// wait 1 sec in case anything needs to stabilize
 		_delay_ms(1000);
 		// turn GPS power on
@@ -93,14 +104,14 @@ int main(void)
 		_delay_ms(200);
 		output_low(PORTA, PULSE_GPS);
 		_delay_ms(1000);
-		// wait for TIME_REQ to go high
-		while((PINB & ((1<<TIME_REQ))) == 0) { // blink fast
-			_delay_ms(500);
+		// wait for interrupt to set flag low
+		while(Prog_status.gps_Request_Active == 1) { // blink fast
+			_delay_ms(200);
 			output_high(PORTA, LED);
-			_delay_ms(500);
+			_delay_ms(200);
 			output_low(PORTA, LED);
 		}
-		// TIME_REQ has gone high
+		// INT0 interrupt has set flag low
 		_delay_ms(1000);
 		// send 200ms pulse to GPS, to turn off
 		output_high(PORTA, PULSE_GPS);
@@ -111,5 +122,39 @@ int main(void)
 		output_low(PORTA, GPS_PWR_ENAB);
 		// continue the main loop
 	}
+}
 
+ISR(EXT_INT0_vect)
+{
+	// if the Input Sense is to detect a low level
+	if ((MCUCR & ((1<<ISC01)|(1<<ISC00))) == 0)
+	{
+		// we are waking up from sleep to get a time fix
+		Prog_status.gps_Request_Active = 1;
+		// (for testing, change this interrupt to next trigger on rising edge.
+		// in final version, 'gps_Request_Active' will be reset to 0 by
+		// completing the time-set sequence)
+		// temporarily disable INT0 to prevent sense-change from triggering an interrupt
+		GIMSK &= ~(1<<6);
+		// change the sense
+		MCUCR |= ((1<<ISC01)|(1<<ISC00));
+		// clear the flag bit before enabling INT0 or interrupt will be triggered here
+		// may not need to do this because flag is cleared on level interrupts
+		GIFR |= (1<<INTF0);
+		GIMSK |= (1<<6);
+		
+		} else {
+		// we have been awake, and the signal now is to shut down
+		// (this is only for testing, change this in final version)
+		Prog_status.gps_Request_Active = 0;
+		// change INT0 back to triggering on level low
+		// temporarily disable INT0 to prevent sense-change from triggering an interrupt
+		GIMSK &= ~(1<<6);
+		// change the sense
+		MCUCR &= ~((1<<ISC01)|(1<<ISC00));
+		// clear the flag bit before enabling INT0 or interrupt will be triggered here
+		// may not need to do this because flag is cleared on level interrupts
+		GIFR |= (1<<INTF0);
+		GIMSK |= (1<<6);
+	}	
 }

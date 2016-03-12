@@ -13,6 +13,7 @@
 /*
  * External Interrupt Request 0
  */
+ /*
 .global	EXT_INT0_vect
 EXT_INT0_vect:
 	in	sreg_save, _SFR_IO_ADDR(SREG)
@@ -20,6 +21,7 @@ EXT_INT0_vect:
 ;;	ser	flags
 	out	_SFR_IO_ADDR(SREG), sreg_save
 	reti
+ */
 
  /*
  * Timer/Counter1 Compare Match A
