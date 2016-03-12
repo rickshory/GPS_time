@@ -13,8 +13,8 @@
 /*
  * External Interrupt Request 0
  */
-.global	INT0_vect
-INT0_vect:
+.global	EXT_INT0_vect
+EXT_INT0_vect:
 	in	sreg_save, _SFR_IO_ADDR(SREG)
 ;;	inc	counter_hi
 ;;	ser	flags
