@@ -34,6 +34,7 @@
 #define PULSE_GPS PA1
 #define RX_GPS_NMEA PA2
 #define TX_SET_TIME PB1
+#define CMD_OUT PA6
 
 // Some macros that make the code more readable
 #define output_low(port,pin) port &= ~(1<<pin)
@@ -44,6 +45,7 @@
 // function prototypes
 void wait200ms(void);
 void wait1sec(void);
+void sendSetTimeCommand(void);
 
 static volatile union Prog_status // Program status bit flags
 {
@@ -91,6 +93,8 @@ int main(void)
 		wait1sec();
 		// wait for interrupt to set flag high
 		while(Prog_status.gps_Request_Active == 0) { // blink slow
+			// for testing, send a dummy string, as if the set-time command
+			sendSetTimeCommand();
 			wait1sec();
 			output_high(PORTA, LED);
 			wait1sec();
@@ -137,6 +141,61 @@ void wait1sec(void){
 	for (i = 0; i < 5; i++)	{
 		wait200ms();
 	}
+}
+
+void sendSetTimeCommand(void) {
+	// send the set-time command
+	// interrupt-driven, so happens concurrently with wait states
+	// message to send is in known buffer
+	
+	// set up 16-bit counter to time the RS-232 output
+	// will always be 9600 baud, and F_CPU = 8MHz, so numbers are hardwired
+	// can use input capture (IC..) reg to hold number because not using input capture mode
+	ICR1 = 833; // cycles for bit time
+
+	// note that WGM1[3:0] is split over TCCR1A and TCCR1B
+	// TCCR1A – Timer/Counter1 Control Register A
+	// 7 COM1A1
+	// 6 COM1A0
+	// 5 COM1B1 (not used here, default 0)
+	// 4 COM1B0 (not used here, default 0)
+	// (3:2 reserved)
+	// 1 WGM11, use 0, see below
+	// 0 WGM10, use 0, see below
+
+	// Clear Timer on Compare Match (CTC) Mode
+	// the counter is cleared to zero when the counter value (TCNT1) 
+	// matches ICR1 (WGM1[3:0] = 12), ICFn Interrupt Flag Set
+	// [to match OCR1A (WGM1[3:0] = 4), OCnA Interrupt Flag Set]
+	// TOV1 flag is set in the same timer clock cycle that the counter counts from MAX to 0x0000
+	// ? since timer clears on match, returns to 0, this never happens
+	
+	// in Compare Output Mode, non-PWM:
+	//  for testing set COM1A[1:0], TCCR1A[7:6]=(0:1), Toggle OC1A on Compare Match
+	//  in use, set as follows to output high and low serial bits
+	//   COM1A[1:0], TCCR1A[7:6]=(1:0), Clear OC1A on Compare Match (Set output to low level)
+	//   COM1A[1:0], TCCR1A[7:6]=(1:1), Set OC1A on Compare Match (Set output to high level)
+	TCCR1A = 0b0100000;
+	
+	// TCCR1B – Timer/Counter1 Control Register B
+	// 7 ICNC1: Input Capture Noise Canceler (not used here, default 0)
+	// 6 ICES1: Input Capture Edge Select (not used here, default 0)
+	// 5 (reserved)
+	// 4 WGM13, use 1
+	// 3 WGM12, use 1
+	// 2 CS12 clock select bit 2, use 0
+	// 1 CS11 clock select bit 1, use 0
+	// 0 CS10 clock select bit 0, use 1
+	
+	// use CS1[2:0]=0b001, clkI/O/1 (No prescaling)
+	// use WGM1[3:0] = 12 = 0b1100
+	TCCR1B = 0b00011001;
+	
+	// see if following works: OC1A shared with MOSI used for programming
+	// set OC1A as output, PDIP pin 7, SOIC pin 16; PA6
+	DDRA |= (1<<CMD_OUT);
+	
+	
 }
 
 ISR(EXT_INT0_vect)
