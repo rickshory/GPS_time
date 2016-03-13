@@ -154,7 +154,10 @@ void sendSetTimeCommand(void) {
 	// will always be 9600 baud, and F_CPU = 8MHz, so numbers are hardwired
 	// can use input capture (IC..) reg to hold number because not using input capture mode
 //	ICR1 = 833; // cycles for 9600 baud bit time, no prescaler
-	ICR1 = 12500; // for testing at 0.1 sec per transition; use prescaler 64
+	ICR1 = 6250; // for testing at 0.05 sec per transition; use prescaler 64
+//	ICR1 = 12500; // for testing at 0.1 sec per transition; use prescaler 64
+//	ICR1 = 25000; // for testing at 0.2 sec per transition; use prescaler 64
+//	ICR1 = 50000; // for testing at 0.4 sec per transition; use prescaler 64
 
 
 	// note that WGM1[3:0] is split over TCCR1A and TCCR1B
@@ -179,7 +182,9 @@ void sendSetTimeCommand(void) {
 	//  in use, set as follows to output high and low serial bits
 	//   COM1A[1:0], TCCR1A[7:6]=(1:0), Clear OC1A on Compare Match (Set output to low level)
 	//   COM1A[1:0], TCCR1A[7:6]=(1:1), Set OC1A on Compare Match (Set output to high level)
-	TCCR1A = 0b0100000;
+//	TCCR1A = 0b0100000;
+	// for testing, set high on match; see if it happens at all
+	TCCR1A = 0b1100000;
 	
 	// TCCR1B – Timer/Counter1 Control Register B
 	// 7 ICNC1: Input Capture Noise Canceler (not used here, default 0)
@@ -218,9 +223,13 @@ void sendSetTimeCommand(void) {
 	TCNT1 = 0;
 	// enable Input Capture 1 (serving as Output Compare) interrupt
 //	TIMSK1 = 0b00100000;
-	TIMSK1 |= (1<<ICIE1);
+//	TIMSK1 |= (1<<ICIE1);
+	// enable all these interrupts
+	TIMSK1 = 0b00100110;
 	// clear the interrupt flag, write a 1 to the bit location
-	TIFR1 |= (1<<ICF1);
+//	TIFR1 |= (1<<ICF1);
+	// clear all these interrupt flags
+	TIFR1 = 0b00100110;
 	sei(); // re-enable interrupts
 	
 }
@@ -265,14 +274,29 @@ ISR(TIM1_CAPT_vect) {
 	// occurs when TCNT1 matches ICR1
 	
 	bitCount += 1;
-	if (bitCount > 6) { // for testing, only go 6 transitions
+	if (bitCount >= 4) { // for testing, only go 6 transitions
 		// disable this interrupt so the transmission stops
 //		TIMSK1 &= ~(0b00100000);
-		TIMSK1 &= ~(1<<ICIE1);
+//		TIMSK1 &= ~(1<<ICIE1);
+		TIMSK1 = 0;
 	}
 	// clear the flag so this interrupt can occur again
 	// The ICF1 flag is automatically cleared when the interrupt is executed.
 	// Alternatively the ICF1 flag can be cleared by software by writing a logical one to its I/O bit location.
 //	TIFR1 &= ~(1<<ICF1); //OCF1A?
 	// for testing, counter is set to toggle output, and to auto clear on match
+}
+
+// maybe the wrong interrupt is firing; service them all
+ISR(TIM1_COMPA_vect) {
+	bitCount += 1;
+	if (bitCount >= 4) {
+		TIMSK1 = 0; // mask them all
+	}
+}
+ISR(TIM1_COMPB_vect) {
+	bitCount += 1;
+	if (bitCount >= 4) {
+		TIMSK1 = 0; // mask them all
+	}
 }
