@@ -217,9 +217,10 @@ void sendSetTimeCommand(void) {
 	// set the counter to zero
 	TCNT1 = 0;
 	// enable Input Capture 1 (serving as Output Compare) interrupt
-	TIMSK1 = 0b00100000;
-	// clear the interrupt flag
-	TIFR1 &= ~(1<<ICF1);
+//	TIMSK1 = 0b00100000;
+	TIMSK1 |= (1<<ICIE1);
+	// clear the interrupt flag, write a 1 to the bit location
+	TIFR1 |= (1<<ICF1);
 	sei(); // re-enable interrupts
 	
 }
@@ -266,9 +267,12 @@ ISR(TIM1_CAPT_vect) {
 	bitCount += 1;
 	if (bitCount > 6) { // for testing, only go 6 transitions
 		// disable this interrupt so the transmission stops
-		TIMSK1 &= ~(0b00100000);
+//		TIMSK1 &= ~(0b00100000);
+		TIMSK1 &= ~(1<<ICIE1);
 	}
 	// clear the flag so this interrupt can occur again
-	TIFR1 &= ~(1<<ICF1);
+	// The ICF1 flag is automatically cleared when the interrupt is executed.
+	// Alternatively the ICF1 flag can be cleared by software by writing a logical one to its I/O bit location.
+//	TIFR1 &= ~(1<<ICF1); //OCF1A?
 	// for testing, counter is set to toggle output, and to auto clear on match
 }
