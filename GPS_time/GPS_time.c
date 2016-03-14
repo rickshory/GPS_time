@@ -189,7 +189,9 @@ void sendSetTimeCommand(void) {
 //	TCCR1A = 0b0100000;
 	// for testing, set high on match; see if it happens at all
 //	TCCR1A = 0b1100000; // this makes it toggle. unexplained
-	TCCR1A = 0b0100000; // try WGM13=0 (use OCR1A), and back to Toggle
+//	TCCR1A = 0b0100000; // try WGM13=0 (use OCR1A), and back to Toggle
+	TCCR1A = 0b1100000; // supposed to set high, but LED flickers
+	// ISR is supposed to stop flicker after a few cycles, flickering does not stop
 	
 	// TCCR1B – Timer/Counter1 Control Register B
 	// 7 ICNC1: Input Capture Noise Canceler (not used here, default 0)
