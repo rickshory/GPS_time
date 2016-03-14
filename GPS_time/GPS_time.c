@@ -162,6 +162,7 @@ void sendSetTimeCommand(void) {
 // test to see if this has visible flicker
 	ICR1 = 32258; // for testing at 31 transitions sec; use prescaler 8
 // yes, 31/sec is visible flicker
+	OCR1A = 32258; // try this register instead of Output Compare
 
 	// note that WGM1[3:0] is split over TCCR1A and TCCR1B
 	// TCCR1A – Timer/Counter1 Control Register A
@@ -187,7 +188,8 @@ void sendSetTimeCommand(void) {
 	//   COM1A[1:0], TCCR1A[7:6]=(1:1), Set OC1A on Compare Match (Set output to high level)
 //	TCCR1A = 0b0100000;
 	// for testing, set high on match; see if it happens at all
-	TCCR1A = 0b1100000; // this makes it toggle. unexplained
+//	TCCR1A = 0b1100000; // this makes it toggle. unexplained
+	TCCR1A = 0b0100000; // try WGM13=0 (use OCR1A), and back to Toggle
 	
 	// TCCR1B – Timer/Counter1 Control Register B
 	// 7 ICNC1: Input Capture Noise Canceler (not used here, default 0)
@@ -204,7 +206,8 @@ void sendSetTimeCommand(void) {
 //	TCCR1B = 0b00011001; // use for 9600 baud
 // for testing use  CS1[2:0]=0b011, clkI/O/1 (prescaler 64)
 //	TCCR1B = 0b00011011; // use for testing at 0.1 sec per transition (prescaler 64)
-	TCCR1B = 0b00011010; // use for testing at 31 transitions per second (prescaler 8)
+//	TCCR1B = 0b00011010; // use for testing at 31 transitions per second (prescaler 8)
+	TCCR1B = 0b00001010; // try WGM13=0, compare and interrupt use OCR1A
 	// TCCR1C – Timer/Counter1 Control Register C
 	// for compatibility with future devices, set to zero when TCCR1A is written
 	TCCR1C = 0;
@@ -292,14 +295,15 @@ ISR(TIM1_CAPT_vect) {
 	// for testing, counter is set to toggle output, and to auto clear on match
 }
 
-/*
 // maybe the wrong interrupt is firing; service them all
 ISR(TIM1_COMPA_vect) {
 	bitCount += 1;
-	if (bitCount >= 4) {
+	if (bitCount >= 10) {
 		TIMSK1 = 0; // mask them all
 	}
 }
+
+/*
 ISR(TIM1_COMPB_vect) {
 	bitCount += 1;
 	if (bitCount >= 4) {
