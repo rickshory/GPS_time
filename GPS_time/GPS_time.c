@@ -233,13 +233,13 @@ void sendSetTimeCommand(void) {
 	TCNT1 = 0;
 	// enable Input Capture 1 (serving as Output Compare) interrupt
 //	TIMSK1 = 0b00100000;
-	TIMSK1 |= (1<<ICIE1);
+//	TIMSK1 |= (1<<ICIE1);
 	// enable all these interrupts
-//	TIMSK1 = 0b00100110;
+	TIMSK1 = 0b00100111;
 	// clear the interrupt flag, write a 1 to the bit location
 //	TIFR1 |= (1<<ICF1);
 	// clear all these interrupt flags
-	TIFR1 = 0b00100110;
+	TIFR1 = 0b00100111;
 	// try this: if (!(PI_OC1A & IO_OC1A)) TCCR1C=(1<<FOC1A);
 	sei(); // re-enable interrupts
 	
@@ -314,3 +314,10 @@ ISR(TIM1_COMPB_vect) {
 	}
 }
 */
+
+ISR(TIM1_OVF_vect) {
+	bitCount += 1;
+	if (bitCount >= 10) {
+		TIMSK1 = 0; // mask them all
+	}
+}
