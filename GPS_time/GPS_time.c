@@ -154,11 +154,14 @@ void sendSetTimeCommand(void) {
 	// will always be 9600 baud, and F_CPU = 8MHz, so numbers are hardwired
 	// can use input capture (IC..) reg to hold number because not using input capture mode
 //	ICR1 = 833; // cycles for 9600 baud bit time, no prescaler
-	ICR1 = 6250; // for testing at 0.05 sec per transition; use prescaler 64
+//	ICR1 = 6250; // for testing at 0.05 sec per transition; use prescaler 64
 //	ICR1 = 12500; // for testing at 0.1 sec per transition; use prescaler 64
 //	ICR1 = 25000; // for testing at 0.2 sec per transition; use prescaler 64
 //	ICR1 = 50000; // for testing at 0.4 sec per transition; use prescaler 64
-
+// slowest possible rate with 8-bit counter is 31 transitions per second
+// test to see if this has visible flicker
+	ICR1 = 32258; // for testing at 31 transitions sec; use prescaler 8
+// yes, 31/sec is visible flicker
 
 	// note that WGM1[3:0] is split over TCCR1A and TCCR1B
 	// TCCR1A – Timer/Counter1 Control Register A
@@ -184,7 +187,7 @@ void sendSetTimeCommand(void) {
 	//   COM1A[1:0], TCCR1A[7:6]=(1:1), Set OC1A on Compare Match (Set output to high level)
 //	TCCR1A = 0b0100000;
 	// for testing, set high on match; see if it happens at all
-	TCCR1A = 0b1100000;
+	TCCR1A = 0b1100000; // this makes it toggle. unexplained
 	
 	// TCCR1B – Timer/Counter1 Control Register B
 	// 7 ICNC1: Input Capture Noise Canceler (not used here, default 0)
@@ -200,7 +203,8 @@ void sendSetTimeCommand(void) {
 	// use WGM1[3:0] = 12 = 0b1100
 //	TCCR1B = 0b00011001; // use for 9600 baud
 // for testing use  CS1[2:0]=0b011, clkI/O/1 (prescaler 64)
-	TCCR1B = 0b00011011; // use for testing at 0.1 sec per transition (prescaler 64)
+//	TCCR1B = 0b00011011; // use for testing at 0.1 sec per transition (prescaler 64)
+	TCCR1B = 0b00011010; // use for testing at 31 transitions per second (prescaler 8)
 	// TCCR1C – Timer/Counter1 Control Register C
 	// for compatibility with future devices, set to zero when TCCR1A is written
 	TCCR1C = 0;
