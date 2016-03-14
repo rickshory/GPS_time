@@ -206,7 +206,8 @@ void sendSetTimeCommand(void) {
 //	TCCR1B = 0b00011011; // use for testing at 0.1 sec per transition (prescaler 64)
 //	TCCR1B = 0b00011010; // use for testing at 31 transitions per second (prescaler 8)
 //	TCCR1B = 0b00001010; // try WGM13=0, compare and interrupt use OCR1A
-	TCCR1B = 0b00000010; // start in Normal Mode
+//	TCCR1B = 0b00000010; // start in Normal Mode
+	TCCR1B = 0b00011010; // CTC Mode using ICR1, prescale 8
 	// TCCR1C – Timer/Counter1 Control Register C
 	// for compatibility with future devices, set to zero when TCCR1A is written
 	TCCR1C = 0;
@@ -237,8 +238,8 @@ void sendSetTimeCommand(void) {
 //	TIFR1 = 0b00100111;
 	// try this: if (!(PI_OC1A & IO_OC1A)) TCCR1C=(1<<FOC1A);
 	sei(); // re-enable interrupts
-	TCCR1B = 0b00110010; // change to CTC Mode using ICR1, prescale 8
 	DDRA |= (1<<CMD_OUT);
+//	TCCR1B = 0b00011010; // change to CTC Mode using ICR1, prescale 8
 	
 }
 
