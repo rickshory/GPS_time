@@ -162,7 +162,7 @@ void sendSetTimeCommand(void) {
 // test to see if this has visible flicker
 	ICR1 = 32258; // for testing at 31 transitions sec; use prescaler 8
 // yes, 31/sec is visible flicker
-	OCR1A = 32258; // try this register instead of Output Compare
+//	OCR1A = 32258; // try this register instead of Output Compare
 
 	// note that WGM1[3:0] is split over TCCR1A and TCCR1B
 	// TCCR1A – Timer/Counter1 Control Register A
@@ -186,11 +186,7 @@ void sendSetTimeCommand(void) {
 	//  in use, set as follows to output high and low serial bits
 	//   COM1A[1:0], TCCR1A[7:6]=(1:0), Clear OC1A on Compare Match (Set output to low level)
 	//   COM1A[1:0], TCCR1A[7:6]=(1:1), Set OC1A on Compare Match (Set output to high level)
-//	TCCR1A = 0b0100000;
-	// for testing, set high on match; see if it happens at all
-//	TCCR1A = 0b1100000; // this makes it toggle. unexplained
-//	TCCR1A = 0b0100000; // try WGM13=0 (use OCR1A), and back to Toggle
-	TCCR1A = 0b1100000; // supposed to set high, but LED flickers
+	TCCR1A = 0b01000000; // try toggle with correct number of bits
 	// ISR is supposed to stop flicker after a few cycles, flickering does not stop
 	
 	// TCCR1B – Timer/Counter1 Control Register B
@@ -210,7 +206,7 @@ void sendSetTimeCommand(void) {
 //	TCCR1B = 0b00011011; // use for testing at 0.1 sec per transition (prescaler 64)
 //	TCCR1B = 0b00011010; // use for testing at 31 transitions per second (prescaler 8)
 //	TCCR1B = 0b00001010; // try WGM13=0, compare and interrupt use OCR1A
-	TCCR1B = 0b00000010; // try Normal Mode, free-running; LED flickers
+	TCCR1B = 0b00000010; // start in Normal Mode
 	// TCCR1C – Timer/Counter1 Control Register C
 	// for compatibility with future devices, set to zero when TCCR1A is written
 	TCCR1C = 0;
@@ -226,22 +222,23 @@ void sendSetTimeCommand(void) {
 	// 0 TOIE1: Timer/Counter1, Overflow Interrupt Enable (not used here)
 	// see if following works: OC1A shared with MOSI used for programming
 	// set OC1A as output, PDIP pin 7, SOIC pin 16; PA6
-	DDRA |= (1<<CMD_OUT);
 	bitCount = 0;
 	cli(); // temporarily disable interrupts
 	// set the counter to zero
 	TCNT1 = 0;
 	// enable Input Capture 1 (serving as Output Compare) interrupt
 //	TIMSK1 = 0b00100000;
-//	TIMSK1 |= (1<<ICIE1);
+	TIMSK1 |= (1<<ICIE1);
 	// enable all these interrupts
-	TIMSK1 = 0b00100111;
+//	TIMSK1 = 0b00100111;
 	// clear the interrupt flag, write a 1 to the bit location
-//	TIFR1 |= (1<<ICF1);
+	TIFR1 |= (1<<ICF1);
 	// clear all these interrupt flags
-	TIFR1 = 0b00100111;
+//	TIFR1 = 0b00100111;
 	// try this: if (!(PI_OC1A & IO_OC1A)) TCCR1C=(1<<FOC1A);
 	sei(); // re-enable interrupts
+	TCCR1B = 0b00110010; // change to CTC Mode using ICR1, prescale 8
+	DDRA |= (1<<CMD_OUT);
 	
 }
 
@@ -285,11 +282,11 @@ ISR(TIM1_CAPT_vect) {
 	// occurs when TCNT1 matches ICR1
 	
 	bitCount += 1;
-	if (bitCount >= 4) { // for testing, only go 6 transitions
+	if (bitCount >= 6) { // for testing, only go 6 transitions
 		// disable this interrupt so the transmission stops
 //		TIMSK1 &= ~(0b00100000);
-//		TIMSK1 &= ~(1<<ICIE1);
-		TIMSK1 = 0;
+		TIMSK1 &= ~(1<<ICIE1);
+//		TIMSK1 = 0;
 	}
 	// clear the flag so this interrupt can occur again
 	// The ICF1 flag is automatically cleared when the interrupt is executed.
@@ -298,6 +295,7 @@ ISR(TIM1_CAPT_vect) {
 	// for testing, counter is set to toggle output, and to auto clear on match
 }
 
+/*
 // maybe the wrong interrupt is firing; service them all
 ISR(TIM1_COMPA_vect) {
 	bitCount += 1;
@@ -306,14 +304,13 @@ ISR(TIM1_COMPA_vect) {
 	}
 }
 
-/*
+
 ISR(TIM1_COMPB_vect) {
 	bitCount += 1;
 	if (bitCount >= 4) {
 		TIMSK1 = 0; // mask them all
 	}
 }
-*/
 
 ISR(TIM1_OVF_vect) {
 	bitCount += 1;
@@ -321,3 +318,5 @@ ISR(TIM1_OVF_vect) {
 		TIMSK1 = 0; // mask them all
 	}
 }
+
+*/
