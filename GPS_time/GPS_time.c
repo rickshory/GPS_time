@@ -234,9 +234,9 @@ void sendSetTimeCommand(void) {
 	// enable all these interrupts
 //	TIMSK1 = 0b00100110;
 	// clear the interrupt flag, write a 1 to the bit location
-	TIFR1 |= (1<<ICF1);
+//	TIFR1 |= (1<<ICF1);
 	// clear all these interrupt flags
-//	TIFR1 = 0b00100110;
+	TIFR1 = 0b00100110;
 	// try this: if (!(PI_OC1A & IO_OC1A)) TCCR1C=(1<<FOC1A);
 	sei(); // re-enable interrupts
 	
