@@ -209,7 +209,8 @@ void sendSetTimeCommand(void) {
 // for testing use  CS1[2:0]=0b011, clkI/O/1 (prescaler 64)
 //	TCCR1B = 0b00011011; // use for testing at 0.1 sec per transition (prescaler 64)
 //	TCCR1B = 0b00011010; // use for testing at 31 transitions per second (prescaler 8)
-	TCCR1B = 0b00001010; // try WGM13=0, compare and interrupt use OCR1A
+//	TCCR1B = 0b00001010; // try WGM13=0, compare and interrupt use OCR1A
+	TCCR1B = 0b00000010; // try Normal Mode, free-running; LED flickers
 	// TCCR1C – Timer/Counter1 Control Register C
 	// for compatibility with future devices, set to zero when TCCR1A is written
 	TCCR1C = 0;
