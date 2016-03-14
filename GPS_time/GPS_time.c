@@ -186,8 +186,9 @@ void sendSetTimeCommand(void) {
 	//  in use, set as follows to output high and low serial bits
 	//   COM1A[1:0], TCCR1A[7:6]=(1:0), Clear OC1A on Compare Match (Set output to low level)
 	//   COM1A[1:0], TCCR1A[7:6]=(1:1), Set OC1A on Compare Match (Set output to high level)
-	TCCR1A = 0b01000000; // try toggle with correct number of bits
+//	TCCR1A = 0b01000000; // try toggle with correct number of bits
 	// ISR is supposed to stop flicker after a few cycles, flickering does not stop
+	TCCR1A = 0b11000000; // set high, try switching within ISR
 	
 	// TCCR1B – Timer/Counter1 Control Register B
 	// 7 ICNC1: Input Capture Noise Canceler (not used here, default 0)
@@ -283,11 +284,17 @@ ISR(TIM1_CAPT_vect) {
 	// occurs when TCNT1 matches ICR1
 	
 	bitCount += 1;
-	if (bitCount >= 6) { // for testing, only go 6 transitions
+	if (TCCR1A == 0b11000000) { // if high
+		TCCR1A = 0b10000000; // set low
+	} else {
+		TCCR1A = 0b11000000; // is low, set high
+	}
+	if (bitCount >= 10) { // for testing, only go 10 transitions
 		// disable this interrupt so the transmission stops
 //		TIMSK1 &= ~(0b00100000);
 		TIMSK1 &= ~(1<<ICIE1);
 //		TIMSK1 = 0;
+		TCCR1A = 0b10000000; // on next match set low; counter continues but not this interrupt
 	}
 	// clear the flag so this interrupt can occur again
 	// The ICF1 flag is automatically cleared when the interrupt is executed.
