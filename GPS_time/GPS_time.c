@@ -150,43 +150,32 @@ void sendSetTimeCommand(void) {
 	// interrupt-driven, so this fn initiates, then transmission happens concurrently with wait states
 	// message to send is in known buffer
 	
-	// set up 16-bit counter to time the RS-232 output
+	// set up 8-bit counter to time the RS-232 output
 	// will always be 9600 baud, and F_CPU = 8MHz, so numbers are hardwired
-	// can use input capture (IC..) reg to hold number because not using input capture mode
-//	ICR1 = 833; // cycles for 9600 baud bit time, no prescaler
-//	ICR1 = 6250; // for testing at 0.05 sec per transition; use prescaler 64
-//	ICR1 = 12500; // for testing at 0.1 sec per transition; use prescaler 64
-//	ICR1 = 25000; // for testing at 0.2 sec per transition; use prescaler 64
-//	ICR1 = 50000; // for testing at 0.4 sec per transition; use prescaler 64
-// slowest possible rate with 8-bit counter is 31 transitions per second
-// test to see if this has visible flicker
-	ICR1 = 32258; // for testing at 31 transitions sec; use prescaler 8
-// yes, 31/sec is visible flicker
-	OCR1A = 32258; // try this register instead of Output Compare
+	OCR0A = 252; // for testing, 31 transitions sec; use prescaler 1024
 
-	// note that WGM1[3:0] is split over TCCR1A and TCCR1B
-	// TCCR1A – Timer/Counter1 Control Register A
-	// 7 COM1A1
-	// 6 COM1A0
-	// 5 COM1B1 (not used here, default 0)
-	// 4 COM1B0 (not used here, default 0)
+	// TCCR0A – Timer/Counter0 Control Register A
+	// 7 COM0A1
+	// 6 COM0A0
+	// 5 COM0B1 (not used here, default 0)
+	// 4 COM0B0 (not used here, default 0)
 	// (3:2 reserved)
-	// 1 WGM11, use 0, see below
-	// 0 WGM10, use 0, see below
-
-	// Clear Timer on Compare Match (CTC) Mode
-	// the counter is cleared to zero when the counter value (TCNT1) 
-	// matches ICR1 (WGM1[3:0] = 12), ICFn Interrupt Flag Set
-	// [to match OCR1A (WGM1[3:0] = 4), OCnA Interrupt Flag Set]
-	// TOV1 flag is set in the same timer clock cycle that the counter counts from MAX to 0x0000
+	// 1 WGM01
+	// 0 WGM00
+	
+	// start in Normal Mode WGM0[1:0]=(00), then change to
+	// Clear Timer on Compare Match (CTC) Mode WGM0[1:0]=(10)
+	// the counter is cleared to zero when the counter value (TCNT0) 
+	// matches OCR0A, ICFn Interrupt Flag Set
+	// TOV0 flag is set in the same timer clock cycle that the counter counts from MAX to 0x0000
 	// ? since timer clears on match, returns to 0, this never happens
 	
 	// in Compare Output Mode, non-PWM:
-	//  for testing set COM1A[1:0], TCCR1A[7:6]=(0:1), Toggle OC1A on Compare Match
+	//  for testing set COM0A[1:0], TCCR0A[7:6]=(0:1), Toggle OC1A on Compare Match
 	//  in use, set as follows to output high and low serial bits
-	//   COM1A[1:0], TCCR1A[7:6]=(1:0), Clear OC1A on Compare Match (Set output to low level)
-	//   COM1A[1:0], TCCR1A[7:6]=(1:1), Set OC1A on Compare Match (Set output to high level)
-//	TCCR1A = 0b0100000;
+	//   COM0A[1:0], TCCR0A[7:6]=(1:0), Clear OC0A on Compare Match (Set output to low level)
+	//   COM0A[1:0], TCCR0A[7:6]=(1:1), Set OC0A on Compare Match (Set output to high level)
+	TCCR0A = 0b0100000;
 	// for testing, set high on match; see if it happens at all
 //	TCCR1A = 0b1100000; // this makes it toggle. unexplained
 //	TCCR1A = 0b0100000; // try WGM13=0 (use OCR1A), and back to Toggle
@@ -226,8 +215,13 @@ void sendSetTimeCommand(void) {
 	// 0 TOIE1: Timer/Counter1, Overflow Interrupt Enable (not used here)
 	// see if following works: OC1A shared with MOSI used for programming
 	// set OC1A as output, PDIP pin 7, SOIC pin 16; PA6
-	DDRA |= (1<<CMD_OUT);
+	
+	//The setup of the OC0x should be performed before setting the Data Direction Register for the
+	//port pin to output. The easiest way of setting the OC0x value is to use the Force Output Compare
+	//(0x) strobe bits in Normal mode. The OC0x Registers keep their values even when
+	//changing between Waveform Generation modes.
 	bitCount = 0;
+	DDRA |= (1<<CMD_OUT);
 	cli(); // temporarily disable interrupts
 	// set the counter to zero
 	TCNT1 = 0;
