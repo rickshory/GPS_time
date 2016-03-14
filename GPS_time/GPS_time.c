@@ -113,7 +113,7 @@ int main(void)
 		output_high(PORTA, PULSE_GPS);
 		wait1sec();
 		output_low(PORTA, PULSE_GPS);
-		_delay_ms(1000);
+		wait1sec();
 		// wait for interrupt to set flag low
 		while(Prog_status.gps_Request_Active == 1) { // blink fast
 			wait200ms();
@@ -292,7 +292,7 @@ ISR(TIM1_CAPT_vect) {
 	// clear the flag so this interrupt can occur again
 	// The ICF1 flag is automatically cleared when the interrupt is executed.
 	// Alternatively the ICF1 flag can be cleared by software by writing a logical one to its I/O bit location.
-//	TIFR1 &= ~(1<<ICF1); //OCF1A?
+	TIFR1 &= ~(1<<ICF1); //OCF1A?
 	// for testing, counter is set to toggle output, and to auto clear on match
 }
 
