@@ -23,18 +23,16 @@
 // PA7  6  15
 // PB0  2  11
 // PB1  3  12
-// PB2  5  14
+// PB2  5  14 OC0A, used for set-time signal out
 // PB3  4  13
 
 #define LED PA3
 
-#define TIME_REQ PB2
-#define INIT_TIME PB7
+#define TIME_REQ PB1
 #define GPS_PWR_ENAB PA7
 #define PULSE_GPS PA1
 #define RX_GPS_NMEA PA2
-#define TX_SET_TIME PB1
-#define CMD_OUT PA6
+#define CMD_OUT PB2
 
 // Some macros that make the code more readable
 #define output_low(port,pin) port &= ~(1<<pin)
@@ -56,7 +54,7 @@ static volatile union Prog_status // Program status bit flags
         unsigned char gps_Power_Enabled:1;
         unsigned char gps_Being_Pulsed:1;
         unsigned char listen_To_GPS:1;
-        unsigned char flag4:1;
+        unsigned char cur_Rx_Bit:1;
         unsigned char flag5:1;
         unsigned char flag6:1;
         unsigned char flag7:1;
@@ -113,7 +111,7 @@ int main(void)
 		output_high(PORTA, PULSE_GPS);
 		wait1sec();
 		output_low(PORTA, PULSE_GPS);
-		_delay_ms(1000);
+		wait1sec();
 		// wait for interrupt to set flag low
 		while(Prog_status.gps_Request_Active == 1) { // blink fast
 			wait200ms();
@@ -152,7 +150,11 @@ void sendSetTimeCommand(void) {
 	
 	// set up 8-bit counter to time the RS-232 output
 	// will always be 9600 baud, and F_CPU = 8MHz, so numbers are hardwired
-	OCR0A = 252; // for testing, 31 transitions sec; use prescaler 1024
+//	OCR0A = 104; // normal use, 9600 baud; use prescaler 8
+	OCR0A = 252; // for testing, 31 baud; use prescaler 1024
+
+	// note that WGM0[2:0] is split over TCCR0A and TCCR0B
+	// WGM02 is TCCR0B[3] while WGM0[1:0] is TCCR0A[1:0]
 
 	// TCCR0A – Timer/Counter0 Control Register A
 	// 7 COM0A1
@@ -163,80 +165,61 @@ void sendSetTimeCommand(void) {
 	// 1 WGM01
 	// 0 WGM00
 	
-	// start in Normal Mode WGM0[1:0]=(00), then change to
-	// Clear Timer on Compare Match (CTC) Mode WGM0[1:0]=(10)
+	// Clear Timer on Compare Match (CTC) Mode WGM0[2:0]=(010)
 	// the counter is cleared to zero when the counter value (TCNT0) 
-	// matches OCR0A, ICFn Interrupt Flag Set
+	// matches OCR0A, OCFn Interrupt Flag Set
 	// TOV0 flag is set in the same timer clock cycle that the counter counts from MAX to 0x0000
 	// ? since timer clears on match, returns to 0, this never happens
 	
 	// in Compare Output Mode, non-PWM:
-	//  for testing set COM0A[1:0], TCCR0A[7:6]=(0:1), Toggle OC1A on Compare Match
-	//  in use, set as follows to output high and low serial bits
+	//  in ISR, set as follows to output high and low serial bits
 	//   COM0A[1:0], TCCR0A[7:6]=(1:0), Clear OC0A on Compare Match (Set output to low level)
 	//   COM0A[1:0], TCCR0A[7:6]=(1:1), Set OC0A on Compare Match (Set output to high level)
-	TCCR0A = 0b0100000;
-	// for testing, set high on match; see if it happens at all
-//	TCCR1A = 0b1100000; // this makes it toggle. unexplained
-//	TCCR1A = 0b0100000; // try WGM13=0 (use OCR1A), and back to Toggle
-	TCCR1A = 0b1100000; // supposed to set high, but LED flickers
-	// ISR is supposed to stop flicker after a few cycles, flickering does not stop
+	// default is to set high, for serial idle, Stop Bit, and to be ready for low Start Bit
+	TCCR0A = 0b11000010;
 	
-	// TCCR1B – Timer/Counter1 Control Register B
-	// 7 ICNC1: Input Capture Noise Canceler (not used here, default 0)
-	// 6 ICES1: Input Capture Edge Select (not used here, default 0)
-	// 5 (reserved)
-	// 4 WGM13, use 1
-	// 3 WGM12, use 1
-	// 2 CS12 clock select bit 2, use 0
-	// 1 CS11 clock select bit 1, use 0
-	// 0 CS10 clock select bit 0, use 1
+	// TCCR0B – Timer/Counter0 Control Register B
+	// 7 FOC0A: Force Output Compare A
+	// 6 FOC0B: Force Output Compare B
+	// (5:4, reserved)
+	// 3 WGM02: Waveform Generation Mode
+	// 2 CS02 clock select bit 2
+	// 1 CS01 clock select bit 1
+	// 0 CS00 clock select bit 0
 	
-	// use CS1[2:0]=0b001, clkI/O/1 (No prescaling)
-	// use WGM1[3:0] = 12 = 0b1100
-//	TCCR1B = 0b00011001; // use for 9600 baud
-// for testing use  CS1[2:0]=0b011, clkI/O/1 (prescaler 64)
-//	TCCR1B = 0b00011011; // use for testing at 0.1 sec per transition (prescaler 64)
-//	TCCR1B = 0b00011010; // use for testing at 31 transitions per second (prescaler 8)
-//	TCCR1B = 0b00001010; // try WGM13=0, compare and interrupt use OCR1A
-	TCCR1B = 0b00000010; // try Normal Mode, free-running; LED flickers
-	// TCCR1C – Timer/Counter1 Control Register C
-	// for compatibility with future devices, set to zero when TCCR1A is written
-	TCCR1C = 0;
-	// TIMSK1 – Timer/Counter Interrupt Mask Register 1
-	// (7:6 and 4:3 reserved)
-	// 5 ICIE1: Timer/Counter1, Input Capture Interrupt Enable
-	//  When this bit is written to one, and the I-flag in the Status Register is set (interrupts globally
-	//  enabled), the Timer/Countern Input Capture interrupt is enabled. The
-	//  corresponding Interrupt Vector (See “Interrupts” on page 66.) is executed when the
-	//  ICF1 Flag, located in TIFR1, is set.
-	// 2 OCIE1B: Timer/Counter1, Output Compare B Match Interrupt Enable (not used here)
-	// 1 OCIE1A: Timer/Counter1, Output Compare A Match Interrupt Enable (not used here)
+	// use FOC0A = 1 to strobe output, and force high for default idle
+	// use WGM02 = 0 for CTC Mode
+	// use CS0[2:0]=0b001, for no prescaling
+	// use CS0[2:0]=0b010, (prescale 8) in normal 9600 baud output, OCR0A=104
+//	TCCR0B = 0b10000010;
+	// use CS0[2:0]=0b101, (prescale 1024) to test at 31 baud, OCR0A=252
+	TCCR0B = 0b10000101;
+
+	// TIMSK0 – Timer/Counter 0 Interrupt Mask Register
+	// (7:3 reserved)
+	//  When these bits are written to one, and the I-flag in the Status Register is set (interrupts globally
+	//  enabled), the corresponding interrupt is enabled. The
+	//  corresponding Interrupt Vector is executed when the
+	//  corresponding bit is set in the Timer/Counter Interrupt Flag Register – TIFR0.
+	// 2 OCIE0B: Timer/Counter Output Compare Match B Interrupt Enable (not used here)
+	// 1 OCIE0A: Timer/Counter0 Output Compare Match A Interrupt Enable
 	// 0 TOIE1: Timer/Counter1, Overflow Interrupt Enable (not used here)
-	// see if following works: OC1A shared with MOSI used for programming
-	// set OC1A as output, PDIP pin 7, SOIC pin 16; PA6
+	// set OC0A as output, PDIP pin 5, SOIC pin 14; PB2
 	
 	//The setup of the OC0x should be performed before setting the Data Direction Register for the
 	//port pin to output. The easiest way of setting the OC0x value is to use the Force Output Compare
 	//(0x) strobe bits in Normal mode. The OC0x Registers keep their values even when
 	//changing between Waveform Generation modes.
-	bitCount = 0;
-	DDRA |= (1<<CMD_OUT);
+	DDRB |= (1<<CMD_OUT);
 	cli(); // temporarily disable interrupts
 	// set the counter to zero
-	TCNT1 = 0;
-	// enable Input Capture 1 (serving as Output Compare) interrupt
-//	TIMSK1 = 0b00100000;
-//	TIMSK1 |= (1<<ICIE1);
-	// enable all these interrupts
-	TIMSK1 = 0b00100111;
+	TCNT0 = 0;
+	// enable Output Compare 0 interrupt
+	TIMSK0 |= (1<<OCIE0A);
 	// clear the interrupt flag, write a 1 to the bit location
-//	TIFR1 |= (1<<ICF1);
-	// clear all these interrupt flags
-	TIFR1 = 0b00100111;
-	// try this: if (!(PI_OC1A & IO_OC1A)) TCCR1C=(1<<FOC1A);
+	TIFR0 |= (1<<OCF0A);
+	bitCount = 0;
 	sei(); // re-enable interrupts
-	
 }
 
 ISR(EXT_INT0_vect)
@@ -274,44 +257,28 @@ ISR(EXT_INT0_vect)
 	}	
 }
 
-ISR(TIM1_CAPT_vect) {
-	// with Input Capture disabled, serves same purpose as Output Compare
-	// occurs when TCNT1 matches ICR1
-	
+ISR(TIM0_COMPA_vect) {
+	// occurs when TCNT0 matches OCR0A
+	// pin transition has occurred as this interrupt was called, so 
+	// we have plenty of time to set up the next one, no latency to worry about
 	bitCount += 1;
-	if (bitCount >= 4) { // for testing, only go 6 transitions
-		// disable this interrupt so the transmission stops
-//		TIMSK1 &= ~(0b00100000);
-//		TIMSK1 &= ~(1<<ICIE1);
-		TIMSK1 = 0;
+	if (bitCount <= 10) { // for testing, only go 10 transitions
+		if (TCCR0A & (1<<COM0A0)) { // last match set the output high
+			TCCR0A &= ~(1<<COM0A0); // next match will set output low
+		} else { // last match set the output low
+			TCCR0A |= (1<<COM0A0); // next match will set the output high
+		}
+	} else { // set high, idle
+		TCCR0A |= (1<<COM0A0);
 	}
 	// clear the flag so this interrupt can occur again
-	// The ICF1 flag is automatically cleared when the interrupt is executed.
-	// Alternatively the ICF1 flag can be cleared by software by writing a logical one to its I/O bit location.
-//	TIFR1 &= ~(1<<ICF1); //OCF1A?
-	// for testing, counter is set to toggle output, and to auto clear on match
+	// The OCF0 flag is automatically cleared when the interrupt is executed.
+	// Alternatively the OCF0 flag can be cleared by software by writing a logical one to its I/O bit location.
+//	TIFR0 &= ~(1<<OCF0A);
+
+	// interrupt keeps occurring though no change on output
+	// bitCount keeps incrementing, but testing interval should reset it to zero before rollover
 }
 
-// maybe the wrong interrupt is firing; service them all
-ISR(TIM1_COMPA_vect) {
-	bitCount += 1;
-	if (bitCount >= 10) {
-		TIMSK1 = 0; // mask them all
-	}
-}
 
-/*
-ISR(TIM1_COMPB_vect) {
-	bitCount += 1;
-	if (bitCount >= 4) {
-		TIMSK1 = 0; // mask them all
-	}
-}
-*/
 
-ISR(TIM1_OVF_vect) {
-	bitCount += 1;
-	if (bitCount >= 10) {
-		TIMSK1 = 0; // mask them all
-	}
-}
