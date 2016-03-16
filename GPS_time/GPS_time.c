@@ -56,14 +56,14 @@ static volatile union Prog_status // Program status bit flags
         unsigned char gps_Being_Pulsed:1;
         unsigned char listen_To_GPS:1;
         unsigned char cur_Rx_Bit:1;
-        unsigned char flag5:1;
+        unsigned char cmd_Tx_ongoing:1;
         unsigned char flag6:1;
         unsigned char flag7:1;
     };
 } Prog_status = {0};
 
 static volatile uint8_t bitCount=0;
-static volatile char cmdOut[30] = "Hello, world!\n\r\0";
+static volatile char cmdOut[30] = "Hello, world!\n\r\n\r\0";
 static volatile char *cmdOutPtr;
 
 int main(void)
@@ -234,6 +234,7 @@ void sendSetTimeCommand(void) {
 	TIFR0 |= (1<<OCF0A);
 	bitCount = 0;
 	cmdOutPtr = cmdOut;
+	Prog_status.cmd_Tx_ongoing = 1;
 	sei(); // re-enable interrupts
 }
 
@@ -281,6 +282,10 @@ ISR(TIM0_COMPA_vect) {
 	// Note that even though we are in the A interrupt, we are manipulating the B pin.
 	// Cannot use the A pin because it's the same as the external interrupt input.
 	
+	if (!Prog_status.cmd_Tx_ongoing) {
+		TCCR0A |= (1<<COM0B0); // output high, idle
+		return;
+	}
 	// on first entry of this ISR, bitCount = 0 and pin level is high
 	// cmdOutPtr points to first byte in buffer
 	if (bitCount == 0) { // ready for start bit
@@ -303,9 +308,10 @@ ISR(TIM0_COMPA_vect) {
 		*cmdOutPtr++;
 		if (*cmdOutPtr == '\0') {
 			// in real use, shut everything down
-			// for testing, loop
-			cmdOutPtr = cmdOut;
-			bitCount = 0;
+			// for testing, flag that we are done transmitting
+			Prog_status.cmd_Tx_ongoing = 0; 
+//			cmdOutPtr = cmdOut;
+//			bitCount = 0;
 		} else {
 			bitCount = 0; // start next character
 		}
