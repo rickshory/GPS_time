@@ -9,6 +9,7 @@
 #include <avr/io.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
+#include <string.h>
 #include <avr/sleep.h>
 
 //pins by package
@@ -61,7 +62,9 @@ static volatile union Prog_status // Program status bit flags
     };
 } Prog_status = {0};
 
-static volatile uint8_t bitCount;
+static volatile uint8_t bitCount=0;
+static volatile char cmdOut[30] = "Hello, world!\n\r\0";
+static volatile char *cmdOutPtr;
 
 int main(void)
 {
@@ -230,6 +233,7 @@ void sendSetTimeCommand(void) {
 	// clear the interrupt flag, write a 1 to the bit location
 	TIFR0 |= (1<<OCF0A);
 	bitCount = 0;
+	cmdOutPtr = cmdOut;
 	sei(); // re-enable interrupts
 }
 
@@ -277,9 +281,8 @@ ISR(TIM0_COMPA_vect) {
 	// Note that even though we are in the A interrupt, we are manipulating the B pin.
 	// Cannot use the A pin because it's the same as the external interrupt input.
 	
-	// testing, try to output an ascii "A"
-	volatile static char c = 'A';
 	// on first entry of this ISR, bitCount = 0 and pin level is high
+	// cmdOutPtr points to first byte in buffer
 	if (bitCount == 0) { // ready for start bit
 		// set to go low next time
 		TCCR0A &= ~(1<<COM0B0); // next match will set output low
@@ -287,13 +290,29 @@ ISR(TIM0_COMPA_vect) {
 		// go back to idle state
 		TCCR0A |= (1<<COM0B0); // next match will set the output high
 	} else { // set up bit data
-		if (c & (1<<(bitCount-1))) { // if bit is 1
+		if ((*cmdOutPtr) & (1<<(bitCount-1))) { // if bit is 1
 			TCCR0A |= (1<<COM0B0); // next match will set the output high
 		} else { // bit is 0
 			TCCR0A &= ~(1<<COM0B0); // next match will set output low
 		}
 	}
-	bitCount += 1; // increment bit count
+	
+	// make decisions about next time this ISR is entered
+	if (bitCount > 10) { // maybe make this 9
+		// next character
+		*cmdOutPtr++;
+		if (*cmdOutPtr == '\0') {
+			// in real use, shut everything down
+			// for testing, loop
+			cmdOutPtr = cmdOut;
+			bitCount = 0;
+		} else {
+			bitCount = 0; // start next character
+		}
+	} else {
+		bitCount += 1; // ready for next bit of same character
+	}
+	
 	// bitCount keeps incrementing, but testing interval should reset it to zero before rollover	
 	// The OCF0 flag is automatically cleared when the interrupt is executed.
 	// interrupt keeps occurring though no change on output
