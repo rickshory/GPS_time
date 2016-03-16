@@ -63,7 +63,7 @@ static volatile union Prog_status // Program status bit flags
 } Prog_status = {0};
 
 static volatile uint8_t bitCount=0;
-static volatile char cmdOut[30] = "Hello, world!\n\r\n\r\0";
+static volatile char cmdOut[50] = "t2016-03-19 20:30:01 -08\n\r\n\r\0";
 static volatile char *cmdOutPtr;
 
 int main(void)
