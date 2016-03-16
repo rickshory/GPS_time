@@ -20,19 +20,19 @@
 // PA4  9   1
 // PA5  8  20
 // PA6  7  16
-// PA7  6  15
+// PA7  6  15 OC0B, used for set-time signal out
 // PB0  2  11
 // PB1  3  12
-// PB2  5  14 OC0A, used for set-time signal out
+// PB2  5  14 pin reserved for INT0
 // PB3  4  13
 
 #define LED PA3
 
-#define TIME_REQ PB1
-#define GPS_PWR_ENAB PA7
+#define TIME_REQ PB2
+#define GPS_PWR_ENAB PA0
 #define PULSE_GPS PA1
 #define RX_GPS_NMEA PA2
-#define CMD_OUT PB2
+#define CMD_OUT PA7
 
 // Some macros that make the code more readable
 #define output_low(port,pin) port &= ~(1<<pin)
@@ -76,7 +76,7 @@ int main(void)
 	// assure pulse signal to GPS starts low
 	output_low(PORTA, PULSE_GPS);
 	set_output(DDRA, PULSE_GPS);
-	set_input(DDRB, TIME_REQ);
+//	set_input(DDRB, TIME_REQ);
 	set_output(DDRA, LED);
 	
 	// set up the external interrupt INT0
@@ -109,7 +109,7 @@ int main(void)
 		wait1sec();
 		// send 200ms pulse to GPS, to turn on
 		output_high(PORTA, PULSE_GPS);
-		wait1sec();
+		wait200ms();
 		output_low(PORTA, PULSE_GPS);
 		wait1sec();
 		// wait for interrupt to set flag low
@@ -152,6 +152,10 @@ void sendSetTimeCommand(void) {
 	// will always be 9600 baud, and F_CPU = 8MHz, so numbers are hardwired
 //	OCR0A = 104; // normal use, 9600 baud; use prescaler 8
 	OCR0A = 252; // for testing, 31 baud; use prescaler 1024
+	// simultaneous match using B; 
+	//can't use channel A as the output because it's the same pin as the external interrupt input
+	// but only channel A will cause CTC
+	OCR0B = 252;
 
 	// note that WGM0[2:0] is split over TCCR0A and TCCR0B
 	// WGM02 is TCCR0B[3] while WGM0[1:0] is TCCR0A[1:0]
@@ -159,24 +163,30 @@ void sendSetTimeCommand(void) {
 	// TCCR0A – Timer/Counter0 Control Register A
 	// 7 COM0A1
 	// 6 COM0A0
-	// 5 COM0B1 (not used here, default 0)
-	// 4 COM0B0 (not used here, default 0)
+	// 5 COM0B1
+	// 4 COM0B0
 	// (3:2 reserved)
 	// 1 WGM01
 	// 0 WGM00
 	
 	// Clear Timer on Compare Match (CTC) Mode WGM0[2:0]=(010)
 	// the counter is cleared to zero when the counter value (TCNT0) 
-	// matches OCR0A, OCFn Interrupt Flag Set
+	// matches OCR0A, OCFOA Interrupt Flag Set
 	// TOV0 flag is set in the same timer clock cycle that the counter counts from MAX to 0x0000
 	// ? since timer clears on match, returns to 0, this never happens
 	
 	// in Compare Output Mode, non-PWM:
+	// set COM0A to just toggle, to enable CTC, which only happens by matches on OCR0A, but 
+	//  do not allow output A to control its physical pin because it's the same as
+	//  the external interrupt (PB2). Instead, output the signal on OC0B (PA7).
+	//   COM0A[1:0], TCCR0A[7:6]=(0:1), Let OC0A just toggle on Compare Match	
+	// We will use the OC0A interrupt, but within it, control the action of OC0B
 	//  in ISR, set as follows to output high and low serial bits
-	//   COM0A[1:0], TCCR0A[7:6]=(1:0), Clear OC0A on Compare Match (Set output to low level)
-	//   COM0A[1:0], TCCR0A[7:6]=(1:1), Set OC0A on Compare Match (Set output to high level)
+	//   COM0B[1:0], TCCR0A[5:4]=(1:0), Clear OC0B on next Compare Match (Set output to low level)
+	//   COM0B[1:0], TCCR0A[5:4]=(1:1), Set OC0B on next Compare Match (Set output to high level)
+	
 	// default is to set high, for serial idle, Stop Bit, and to be ready for low Start Bit
-	TCCR0A = 0b11000010;
+	TCCR0A = 0b01110010;
 	
 	// TCCR0B – Timer/Counter0 Control Register B
 	// 7 FOC0A: Force Output Compare A
@@ -191,9 +201,9 @@ void sendSetTimeCommand(void) {
 	// use WGM02 = 0 for CTC Mode
 	// use CS0[2:0]=0b001, for no prescaling
 	// use CS0[2:0]=0b010, (prescale 8) in normal 9600 baud output, OCR0A=104
-//	TCCR0B = 0b10000010;
+//	TCCR0B = 0b11000010;
 	// use CS0[2:0]=0b101, (prescale 1024) to test at 31 baud, OCR0A=252
-	TCCR0B = 0b10000101;
+	TCCR0B = 0b11000101;
 
 	// TIMSK0 – Timer/Counter 0 Interrupt Mask Register
 	// (7:3 reserved)
@@ -204,17 +214,19 @@ void sendSetTimeCommand(void) {
 	// 2 OCIE0B: Timer/Counter Output Compare Match B Interrupt Enable (not used here)
 	// 1 OCIE0A: Timer/Counter0 Output Compare Match A Interrupt Enable
 	// 0 TOIE1: Timer/Counter1, Overflow Interrupt Enable (not used here)
-	// set OC0A as output, PDIP pin 5, SOIC pin 14; PB2
 	
 	//The setup of the OC0x should be performed before setting the Data Direction Register for the
 	//port pin to output. The easiest way of setting the OC0x value is to use the Force Output Compare
 	//(0x) strobe bits in Normal mode. The OC0x Registers keep their values even when
 	//changing between Waveform Generation modes.
-	DDRB |= (1<<CMD_OUT);
+	
+	// Do not set OC0A as output (PDIP pin 5, SOIC pin 14) because it's the same pin (PB2) as the 
+	//  external interrupt used for wake-up. Instead, use OC0B (PA7) for the actual signal (PDIP pin 6, SOIC pin 15)
+	DDRA |= (1<<CMD_OUT);
 	cli(); // temporarily disable interrupts
 	// set the counter to zero
 	TCNT0 = 0;
-	// enable Output Compare 0 interrupt
+	// enable Output Compare 0A interrupt
 	TIMSK0 |= (1<<OCIE0A);
 	// clear the interrupt flag, write a 1 to the bit location
 	TIFR0 |= (1<<OCF0A);
@@ -259,17 +271,20 @@ ISR(EXT_INT0_vect)
 
 ISR(TIM0_COMPA_vect) {
 	// occurs when TCNT0 matches OCR0A
+	
 	// pin transition has occurred as this interrupt was called, so 
 	// we have plenty of time to set up the next one, no latency to worry about
 	bitCount += 1;
+	// Note that even though we are in the A interrupt, we are manipulating the B pin.
+	// Cannot use the A pin because it's the same as the external interrupt input.
 	if (bitCount <= 10) { // for testing, only go 10 transitions
-		if (TCCR0A & (1<<COM0A0)) { // last match set the output high
-			TCCR0A &= ~(1<<COM0A0); // next match will set output low
+		if (TCCR0A & (1<<COM0B0)) { // last match set the output high
+			TCCR0A &= ~(1<<COM0B0); // next match will set output low
 		} else { // last match set the output low
-			TCCR0A |= (1<<COM0A0); // next match will set the output high
+			TCCR0A |= (1<<COM0B0); // next match will set the output high
 		}
 	} else { // set high, idle
-		TCCR0A |= (1<<COM0A0);
+		TCCR0A |= (1<<COM0B0);
 	}
 	// clear the flag so this interrupt can occur again
 	// The OCF0 flag is automatically cleared when the interrupt is executed.
