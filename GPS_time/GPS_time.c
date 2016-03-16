@@ -150,12 +150,11 @@ void sendSetTimeCommand(void) {
 	
 	// set up 8-bit counter to time the RS-232 output
 	// will always be 9600 baud, and F_CPU = 8MHz, so numbers are hardwired
-//	OCR0A = 104; // normal use, 9600 baud; use prescaler 8
-	OCR0A = 252; // for testing, 31 baud; use prescaler 1024
-	// simultaneous match using B; 
+	OCR0A = 104; // normal use, 9600 baud; use prescaler 8
+//	OCR0A = 252; // for testing, 31 baud; use prescaler 1024
+	OCR0B = OCR0A;	// simultaneous match using B
 	//can't use channel A as the output because it's the same pin as the external interrupt input
 	// but only channel A will cause CTC
-	OCR0B = 252;
 
 	// note that WGM0[2:0] is split over TCCR0A and TCCR0B
 	// WGM02 is TCCR0B[3] while WGM0[1:0] is TCCR0A[1:0]
@@ -201,9 +200,9 @@ void sendSetTimeCommand(void) {
 	// use WGM02 = 0 for CTC Mode
 	// use CS0[2:0]=0b001, for no prescaling
 	// use CS0[2:0]=0b010, (prescale 8) in normal 9600 baud output, OCR0A=104
-//	TCCR0B = 0b11000010;
+	TCCR0B = 0b11000010;
 	// use CS0[2:0]=0b101, (prescale 1024) to test at 31 baud, OCR0A=252
-	TCCR0B = 0b11000101;
+//	TCCR0B = 0b11000101;
 
 	// TIMSK0 – Timer/Counter 0 Interrupt Mask Register
 	// (7:3 reserved)
@@ -274,25 +273,31 @@ ISR(TIM0_COMPA_vect) {
 	
 	// pin transition has occurred as this interrupt was called, so 
 	// we have plenty of time to set up the next one, no latency to worry about
-	bitCount += 1;
+	
 	// Note that even though we are in the A interrupt, we are manipulating the B pin.
 	// Cannot use the A pin because it's the same as the external interrupt input.
-	if (bitCount <= 10) { // for testing, only go 10 transitions
-		if (TCCR0A & (1<<COM0B0)) { // last match set the output high
-			TCCR0A &= ~(1<<COM0B0); // next match will set output low
-		} else { // last match set the output low
+	
+	// testing, try to output an ascii "A"
+	volatile static char c = 'A';
+	// on first entry of this ISR, bitCount = 0 and pin level is high
+	if (bitCount == 0) { // ready for start bit
+		// set to go low next time
+		TCCR0A &= ~(1<<COM0B0); // next match will set output low
+	} else if (bitCount >= 9) { // done with data bits
+		// go back to idle state
+		TCCR0A |= (1<<COM0B0); // next match will set the output high
+	} else { // set up bit data
+		if (c & (1<<(bitCount-1))) { // if bit is 1
 			TCCR0A |= (1<<COM0B0); // next match will set the output high
+		} else { // bit is 0
+			TCCR0A &= ~(1<<COM0B0); // next match will set output low
 		}
-	} else { // set high, idle
-		TCCR0A |= (1<<COM0B0);
 	}
-	// clear the flag so this interrupt can occur again
+	bitCount += 1; // increment bit count
+	// bitCount keeps incrementing, but testing interval should reset it to zero before rollover	
 	// The OCF0 flag is automatically cleared when the interrupt is executed.
-	// Alternatively the OCF0 flag can be cleared by software by writing a logical one to its I/O bit location.
-//	TIFR0 &= ~(1<<OCF0A);
-
 	// interrupt keeps occurring though no change on output
-	// bitCount keeps incrementing, but testing interval should reset it to zero before rollover
+
 }
 
 
