@@ -65,6 +65,7 @@ static volatile union Prog_status // Program status bit flags
 static volatile uint8_t xMitBitCount=0, rCvBitCount = 0;
 static volatile char cmdOut[50] = "t2016-03-19 20:30:01 -08\n\r\n\r\0";
 static volatile char *cmdOutPtr;
+static volatile char receiveByte;
 
 int main(void)
 {
@@ -329,10 +330,40 @@ ISR(TIM1_COMPA_vect) {
 	// occurs when TCNT1 matches OCR1A
 	// first, capture the pin state into a bit, whether we end up using it or not,
 	// to keep latency minimal and consistent
-	if (PORTA & (1<<RX_GPS_NMEA)) { //  PORTA PA2
+	if (PORTA & (1<<RX_GPS_NMEA)) {
 		Prog_status.cur_Rx_Bit = 1;
 	} else {
 		Prog_status.cur_Rx_Bit = 0;
+	}
+	if (rCvBitCount == 0) {
+		// we have timed the first half-bit and should be in the middle of the start bit
+		if (Prog_status.cur_Rx_Bit == 1) {
+			// invalid, pin should still be low
+			// reset and exit
+			return;
+		} else { // pin is still low, assume OK
+			// set timer period to full bit time for the rest of the byte
+			// deal with any latency in first half-bit time
+			OCR1A = 1667; // normal use, 4800 baud; use prescaler 1
+			// C the compiler handles the 16-bit access.
+			rCvBitCount++;
+		}
+	} else if (rCvBitCount > 8) { // done receiving byte, this should be the stop bit
+		if (Prog_status.cur_Rx_Bit == 0) { // not a valid stop bit
+			// reset and exit
+			return;			
+		} else { // assume a valid byte
+			// for testing, just copy it to the start of the output buffer
+			cmdOut[0] = receiveByte;
+			// reset and exit
+			return;
+		}
+	} else { // one of the data bits
+		// byte starts as all zeros, so only set ones
+		if (Prog_status.cur_Rx_Bit == 1) {
+			receiveByte |= (1<<(rCvBitCount-1));
+		}
+		rCvBitCount++;
 	}
 }
 
