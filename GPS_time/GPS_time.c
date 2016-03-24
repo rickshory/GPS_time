@@ -242,7 +242,7 @@ void sendSetTimeCommand(void) {
 void setupRxCapture(void) {
 	// shut down Timer 1, if enabled
 	TIMSK1 &= ~(1<<OCIE1A); // disable A match interrupt
-	TIMSK1 = 0; // maybe just disable everything
+//	TIMSK1 = 0; // maybe just disable everything
 	rCvBitCount = 0;
 	// enable pin-change interrupt
 	PCMSK0 |= (1<<PCINT2); // enable only for PA2, RX_GPS_NMEA
@@ -338,6 +338,53 @@ ISR(TIM0_COMPA_vect) {
 
 }
 
+ISR(PCINT0_vect) {
+	// this should be the falling edge of the start bit of the received serial byte
+	rCvBitCount = 0;
+	if (PORTA & (1<<RX_GPS_NMEA)) { // if high, this is not a valid start bit
+		setupRxCapture(); // reset and exit
+		return;
+	}
+	GIMSK &= ~(1<<PCIE0); // turn off pin-change interrupt till done receiving this byte
+	// load timer 1 match with one-half bit time
+	OCR1A = 833; // 4800 baud; use prescaler 1
+	TIMSK1 &= ~(1<<OCIE1A); // assure timer 1 A match interrupt is disabled
+	
+	// TCCR1A – Timer/Counter1 Control Register A
+	// 7 COM1A1
+	// 6 COM1A0
+	// 5 COM1B1
+	// 4 COM1B0
+	// (3:2 reserved)
+	// 1 WGM11
+	// 0 WGM10
+	
+	// TCCR1B – Timer/Counter1 Control Register B
+	// 7 ICNC1: Input Capture Noise Canceler
+	// 6 ICES1: Input Capture Edge Select
+	// (5 reserved)
+	// 4 WGM13: Waveform Generation Mode
+	// 3 WGM12: Waveform Generation Mode
+	// 2 CS12 clock select bit 2
+	// 1 CS11 clock select bit 1
+	// 0 CS10 clock select bit 0	
+	
+	// note that WGM1[3:0] is in two parts, WGM1[3:2]=TCCR1B[4:3] while WGM1[1:0]=TCCR1A[1:0]
+	
+	// WGM1[3:0] = 0100, CTC (Clear Timer on Compare) of OCR1A so it auto-clears
+	// CS1[2:0] = 001, clkI/O/1 (No pre-scaling)
+	TCCR1A = 0b00000000;
+	TCCR1B = 0b00001000; // disable the timer
+	TCCR1C - 0; // assure compatibility
+	TCNT1 = 0; // clear counter
+	TCCR1B = 0b00001001; // enable the timer
+	cli(); // temporarily disable interrupts
+	// clear the interrupt flag, write a 1 to the bit location
+	TIFR1 |= (1<<OCF1A);
+	TIMSK1 |= (1<<OCIE1A); // enable timer 1 A match interrupt
+	sei(); // re-enable interrupts
+}
+
 ISR(TIM1_COMPA_vect) {
 	// occurs when TCNT1 matches OCR1A
 	// first, capture the pin state into a bit, whether we end up using it or not,
@@ -356,7 +403,7 @@ ISR(TIM1_COMPA_vect) {
 		} else { // pin is still low, assume OK
 			// set timer period to full bit time for the rest of the byte
 			// deal with any latency in first half-bit time
-			OCR1A = 1667; // normal use, 4800 baud; use prescaler 1
+			OCR1A = 1667; // 4800 baud; use prescaler 1
 			// C the compiler handles the 16-bit access.
 			rCvBitCount++;
 		}
