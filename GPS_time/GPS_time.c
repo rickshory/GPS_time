@@ -239,6 +239,18 @@ void sendSetTimeCommand(void) {
 	sei(); // re-enable interrupts
 }
 
+void setupRxCapture(void) {
+	// shut down Timer 1, if enabled
+	TIMSK1 &= ~(1<<OCIE1A); // disable A match interrupt
+	TIMSK1 = 0; // maybe just disable everything
+	rCvBitCount = 0;
+	// enable pin-change interrupt
+	PCMSK0 |= (1<<PCINT2); // enable only for PA2, RX_GPS_NMEA
+	cli(); // temporarily disable interrupts
+	GIMSK |= (1<<PCIE0); // enable pin change 0
+	sei(); // re-enable interrupts
+}
+
 ISR(EXT_INT0_vect)
 {
 	// if the Input Sense is to detect a low level
@@ -339,7 +351,7 @@ ISR(TIM1_COMPA_vect) {
 		// we have timed the first half-bit and should be in the middle of the start bit
 		if (Prog_status.cur_Rx_Bit == 1) {
 			// invalid, pin should still be low
-			// reset and exit
+			setupRxCapture(); // reset and exit
 			return;
 		} else { // pin is still low, assume OK
 			// set timer period to full bit time for the rest of the byte
@@ -350,12 +362,12 @@ ISR(TIM1_COMPA_vect) {
 		}
 	} else if (rCvBitCount > 8) { // done receiving byte, this should be the stop bit
 		if (Prog_status.cur_Rx_Bit == 0) { // not a valid stop bit
-			// reset and exit
+			setupRxCapture(); // reset and exit
 			return;			
 		} else { // assume a valid byte
 			// for testing, just copy it to the start of the output buffer
 			cmdOut[0] = receiveByte;
-			// reset and exit
+			setupRxCapture(); // reset and exit
 			return;
 		}
 	} else { // one of the data bits
