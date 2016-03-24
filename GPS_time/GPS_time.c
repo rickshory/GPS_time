@@ -62,7 +62,7 @@ static volatile union Prog_status // Program status bit flags
     };
 } Prog_status = {0};
 
-static volatile uint8_t bitCount=0;
+static volatile uint8_t xMitBitCount=0, rCvBitCount = 0;
 static volatile char cmdOut[50] = "t2016-03-19 20:30:01 -08\n\r\n\r\0";
 static volatile char *cmdOutPtr;
 
@@ -232,7 +232,7 @@ void sendSetTimeCommand(void) {
 	TIMSK0 |= (1<<OCIE0A);
 	// clear the interrupt flag, write a 1 to the bit location
 	TIFR0 |= (1<<OCF0A);
-	bitCount = 0;
+	xMitBitCount = 0;
 	cmdOutPtr = cmdOut;
 	Prog_status.cmd_Tx_ongoing = 1;
 	sei(); // re-enable interrupts
@@ -286,16 +286,16 @@ ISR(TIM0_COMPA_vect) {
 		TCCR0A |= (1<<COM0B0); // output high, idle
 		return;
 	}
-	// on first entry of this ISR, bitCount = 0 and pin level is high
+	// on first entry of this ISR, xMitBitCount = 0 and pin level is high
 	// cmdOutPtr points to first byte in buffer
-	if (bitCount == 0) { // ready for start bit
+	if (xMitBitCount == 0) { // ready for start bit
 		// set to go low next time
 		TCCR0A &= ~(1<<COM0B0); // next match will set output low
-	} else if (bitCount >= 9) { // done with data bits
+	} else if (xMitBitCount >= 9) { // done with data bits
 		// go back to idle state
 		TCCR0A |= (1<<COM0B0); // next match will set the output high
 	} else { // set up bit data
-		if ((*cmdOutPtr) & (1<<(bitCount-1))) { // if bit is 1
+		if ((*cmdOutPtr) & (1<<(xMitBitCount-1))) { // if bit is 1
 			TCCR0A |= (1<<COM0B0); // next match will set the output high
 		} else { // bit is 0
 			TCCR0A &= ~(1<<COM0B0); // next match will set output low
@@ -303,7 +303,7 @@ ISR(TIM0_COMPA_vect) {
 	}
 	
 	// make decisions about next time this ISR is entered
-	if (bitCount > 10) { // maybe make this 9
+	if (xMitBitCount > 10) { // maybe make this 9
 		// next character
 		*cmdOutPtr++;
 		if (*cmdOutPtr == '\0') {
@@ -311,19 +311,28 @@ ISR(TIM0_COMPA_vect) {
 			// for testing, flag that we are done transmitting
 			Prog_status.cmd_Tx_ongoing = 0; 
 //			cmdOutPtr = cmdOut;
-//			bitCount = 0;
+//			xMitBitCount = 0;
 		} else {
-			bitCount = 0; // start next character
+			xMitBitCount = 0; // start next character
 		}
 	} else {
-		bitCount += 1; // ready for next bit of same character
+		xMitBitCount += 1; // ready for next bit of same character
 	}
 	
-	// bitCount keeps incrementing, but testing interval should reset it to zero before rollover	
+	// xMitBitCount keeps incrementing, but testing interval should reset it to zero before rollover	
 	// The OCF0 flag is automatically cleared when the interrupt is executed.
 	// interrupt keeps occurring though no change on output
 
 }
 
-
+ISR(TIM1_COMPA_vect) {
+	// occurs when TCNT1 matches OCR1A
+	// first, capture the pin state into a bit, whether we end up using it or not,
+	// to keep latency minimal and consistent
+	if (PORTA & (1<<RX_GPS_NMEA)) { //  PORTA PA2
+		Prog_status.cur_Rx_Bit = 1;
+	} else {
+		Prog_status.cur_Rx_Bit = 0;
+	}
+}
 
