@@ -421,6 +421,8 @@ ISR(PCINT0_vect) {
 	TIFR1 |= (1<<OCF1A);
 	TIMSK1 |= (1<<OCIE1A); // enable timer 1 A match interrupt
 	sei(); // re-enable interrupts
+	// diagnostics that this happened
+	cmdOut[3] = 'd';
 }
 
 ISR(TIM1_COMPA_vect) {
@@ -432,7 +434,11 @@ ISR(TIM1_COMPA_vect) {
 	} else {
 		Prog_status.cur_Rx_Bit = 0;
 	}
+	// diagnostics that this happened
+	cmdOut[4] = 'e';
 	if (rCvBitCount == 0) {
+		// diagnostics that this happened
+		cmdOut[5] = 'f';
 		// we have timed the first half-bit and should be in the middle of the start bit
 		if (Prog_status.cur_Rx_Bit == 1) {
 			// invalid, pin should still be low
@@ -446,16 +452,23 @@ ISR(TIM1_COMPA_vect) {
 			rCvBitCount++;
 		}
 	} else if (rCvBitCount > 8) { // done receiving byte, this should be the stop bit
+		// diagnostics that this happened
+		cmdOut[6] = 'g';
 		if (Prog_status.cur_Rx_Bit == 0) { // not a valid stop bit
+			// diagnostics that this happened
+			cmdOut[9] = 'i';
 			setupRxCapture(); // reset and exit
 			return;			
 		} else { // assume a valid byte
-			// for testing, just copy it to the start of the output buffer
+			// diagnostics that this happened
+			cmdOut[10] = 'j';			// for testing, just copy it to the start of the output buffer
 			cmdOut[0] = receiveByte;
 			setupRxCapture(); // reset and exit
 			return;
 		}
 	} else { // one of the data bits
+		// diagnostics that this happened
+		cmdOut[7] = 'h';
 		// byte starts as all zeros, so only set ones
 		if (Prog_status.cur_Rx_Bit == 1) {
 			receiveByte |= (1<<(rCvBitCount-1));
