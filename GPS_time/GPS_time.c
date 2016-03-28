@@ -385,7 +385,7 @@ ISR(PCINT0_vect) {
 	}
 	GIMSK &= ~(1<<PCIE0); // turn off pin-change interrupt till done receiving this byte
 	// load timer 1 match with one-half bit time
-	OCR1A = 833; // 4800 baud; use prescaler 1
+	OCR1A = 833-50; // 4800 baud; use prescaler 1, try different latency compensations
 	TIMSK1 &= ~(1<<OCIE1A); // assure timer 1 A match interrupt is disabled
 	
 	// TCCR1A – Timer/Counter1 Control Register A
@@ -457,6 +457,8 @@ ISR(TIM1_COMPA_vect) {
 		if (Prog_status.cur_Rx_Bit == 0) { // not a valid stop bit
 			// diagnostics that this happened
 			cmdOut[9] = 'i';
+			// for testing, display whatever byte we got
+			cmdOut[11] = receiveByte;
 			setupRxCapture(); // reset and exit
 			return;			
 		} else { // assume a valid byte
