@@ -45,6 +45,7 @@
 void wait200ms(void);
 void wait1sec(void);
 void sendSetTimeCommand(void);
+void setupRxCapture(void);
 
 static volatile union Prog_status // Program status bit flags
 {
@@ -95,12 +96,44 @@ int main(void)
 	
 	while(1) {
 		wait1sec();
+		// start listening for serial data from GPS
+		setupRxCapture();
 		// wait for interrupt to set flag high
 		while(Prog_status.gps_Request_Active == 0) { // blink slow
 			// for testing, send a dummy string, as if the set-time command
 			sendSetTimeCommand();
 			wait1sec();
 			output_high(PORTA, LED);
+			// restore the output buffer to its default 't2016-03-19 20:30:01 -08'
+			cmdOut[0] = 't';
+			cmdOut[1] = '2';
+			cmdOut[2] = '0';
+			cmdOut[3] = '1';
+			cmdOut[4] = '6';
+			cmdOut[5] = '-';
+			cmdOut[6] = '0';
+			cmdOut[7] = '3';
+			cmdOut[8] = '-';
+			cmdOut[9] = '1';
+			cmdOut[10] = '0';
+			cmdOut[11] = ' ';
+			cmdOut[12] = '2';
+			cmdOut[13] = '0';
+			cmdOut[14] = ':';
+			cmdOut[15] = '3';
+			cmdOut[16] = '0';
+			cmdOut[17] = ':';
+			cmdOut[18] = '0';
+			cmdOut[19] = '1';
+			cmdOut[20] = ' ';
+			cmdOut[21] = '-';
+			cmdOut[22] = '0';
+			cmdOut[23] = '8';
+			cmdOut[24] = '\n';
+			cmdOut[25] = '\r';
+			cmdOut[26] = '\n';
+			cmdOut[27] = '\r';
+			cmdOut[28] = '\0';
 			wait1sec();
 			output_low(PORTA, LED);
 		}
@@ -115,6 +148,7 @@ int main(void)
 		output_high(PORTA, PULSE_GPS);
 		wait200ms();
 		output_low(PORTA, PULSE_GPS);
+
 		wait1sec();
 		// wait for interrupt to set flag low
 		while(Prog_status.gps_Request_Active == 1) { // blink fast
@@ -249,6 +283,8 @@ void setupRxCapture(void) {
 	cli(); // temporarily disable interrupts
 	GIMSK |= (1<<PCIE0); // enable pin change 0
 	sei(); // re-enable interrupts
+	// diagnostics that this happened
+	cmdOut[1] = 'a';
 }
 
 ISR(EXT_INT0_vect)
@@ -339,6 +375,8 @@ ISR(TIM0_COMPA_vect) {
 }
 
 ISR(PCINT0_vect) {
+	// diagnostics that this happened
+	cmdOut[2] = 'b';
 	// this should be the falling edge of the start bit of the received serial byte
 	rCvBitCount = 0;
 	if (PORTA & (1<<RX_GPS_NMEA)) { // if high, this is not a valid start bit
