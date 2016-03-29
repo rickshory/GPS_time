@@ -385,7 +385,7 @@ ISR(PCINT0_vect) {
 	}
 	GIMSK &= ~(1<<PCIE0); // turn off pin-change interrupt till done receiving this byte
 	// load timer 1 match with one-half bit time
-	OCR1A = 833-50; // 4800 baud; use prescaler 1, try different latency compensations
+	OCR1A = 833; // 4800 baud; use prescaler 1, try different latency compensations
 	TIMSK1 &= ~(1<<OCIE1A); // assure timer 1 A match interrupt is disabled
 	
 	// TCCR1A – Timer/Counter1 Control Register A
@@ -422,7 +422,7 @@ ISR(PCINT0_vect) {
 	TIMSK1 |= (1<<OCIE1A); // enable timer 1 A match interrupt
 	sei(); // re-enable interrupts
 	// diagnostics that this happened
-	cmdOut[3] = 'd';
+	cmdOut[3] = 'c';
 }
 
 ISR(TIM1_COMPA_vect) {
@@ -435,10 +435,10 @@ ISR(TIM1_COMPA_vect) {
 		Prog_status.cur_Rx_Bit = 0;
 	}
 	// diagnostics that this happened
-	cmdOut[4] = 'e';
+	cmdOut[4] = 'd';
 	if (rCvBitCount == 0) {
 		// diagnostics that this happened
-		cmdOut[5] = 'f';
+		cmdOut[5] = 'e';
 		// we have timed the first half-bit and should be in the middle of the start bit
 		if (Prog_status.cur_Rx_Bit == 1) {
 			// invalid, pin should still be low
@@ -453,27 +453,33 @@ ISR(TIM1_COMPA_vect) {
 		}
 	} else if (rCvBitCount > 8) { // done receiving byte, this should be the stop bit
 		// diagnostics that this happened
-		cmdOut[6] = 'g';
+		cmdOut[6] = 'f';
 		if (Prog_status.cur_Rx_Bit == 0) { // not a valid stop bit
 			// diagnostics that this happened
-			cmdOut[9] = 'i';
+			cmdOut[8] = 'h';
 			// for testing, display whatever byte we got
-			cmdOut[11] = receiveByte;
+			cmdOut[21] = receiveByte;
 			setupRxCapture(); // reset and exit
 			return;			
 		} else { // assume a valid byte
 			// diagnostics that this happened
-			cmdOut[10] = 'j';			// for testing, just copy it to the start of the output buffer
+			cmdOut[9] = 'i';			
+			// for testing, just copy it to the start of the output buffer
 			cmdOut[0] = receiveByte;
 			setupRxCapture(); // reset and exit
 			return;
 		}
 	} else { // one of the data bits
 		// diagnostics that this happened
-		cmdOut[7] = 'h';
+		cmdOut[7] = 'g';
 		// byte starts as all zeros, so only set ones
 		if (Prog_status.cur_Rx_Bit == 1) {
 			receiveByte |= (1<<(rCvBitCount-1));
+			// diagnostics
+			cmdOut[11 + rCvBitCount] = '1';
+		} else {
+			// diagnostics
+			cmdOut[11 + rCvBitCount] = '0';			
 		}
 		rCvBitCount++;
 	}
