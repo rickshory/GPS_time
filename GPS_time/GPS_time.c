@@ -437,6 +437,7 @@ ISR(TIM1_COMPA_vect) {
 	// diagnostics that this happened
 	cmdOut[4] = 'd';
 	if (rCvBitCount == 0) {
+		receiveByte = 0;
 		// diagnostics that this happened
 		cmdOut[5] = 'e';
 		// we have timed the first half-bit and should be in the middle of the start bit
