@@ -476,10 +476,10 @@ ISR(TIM1_COMPA_vect) {
 		if (Prog_status.cur_Rx_Bit == 1) {
 			receiveByte |= (1<<(rCvBitCount-1));
 			// diagnostics
-			cmdOut[11 + rCvBitCount] = '1';
+			cmdOut[20 - rCvBitCount] = '1';
 		} else {
 			// diagnostics
-			cmdOut[11 + rCvBitCount] = '0';			
+			cmdOut[20 - rCvBitCount] = '0';			
 		}
 		rCvBitCount++;
 	}
