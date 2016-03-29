@@ -429,7 +429,7 @@ ISR(TIM1_COMPA_vect) {
 	// occurs when TCNT1 matches OCR1A
 	// first, capture the pin state into a bit, whether we end up using it or not,
 	// to keep latency minimal and consistent
-	if (PORTA & (1<<RX_GPS_NMEA)) {
+	if (PINA & (1<<RX_GPS_NMEA)) {
 		Prog_status.cur_Rx_Bit = 1;
 	} else {
 		Prog_status.cur_Rx_Bit = 0;
