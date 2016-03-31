@@ -35,6 +35,8 @@
 #define RX_GPS_NMEA PA2
 #define CMD_OUT PA7
 
+#define recBufLen 128
+
 // Some macros that make the code more readable
 #define output_low(port,pin) port &= ~(1<<pin)
 #define output_high(port,pin) port |= (1<<pin)
@@ -67,10 +69,14 @@ static volatile uint8_t xMitBitCount=0, rCvBitCount = 0;
 static volatile char cmdOut[50] = "t2016-03-19 20:30:01 -08\n\r\n\r\0";
 static volatile char *cmdOutPtr;
 static volatile char receiveByte;
+static volatile char recBuf[recBufLen];
+static volatile char *recBufInPtr, *recBufOutPtr;
+
 
 int main(void)
 {
-	
+	recBufInPtr = recBuf; // start off with both pointers at start of buffer
+	recBufOutPtr = recBuf;
 	// assure time-request signal from main starts high
 	set_input(DDRB, TIME_REQ); // set as input
 	output_high(PORTB, TIME_REQ); // write to the port bit to enable the pull-up resistor
@@ -464,7 +470,13 @@ ISR(TIM1_COMPA_vect) {
 			return;			
 		} else { // assume a valid byte
 			// diagnostics that this happened
-			cmdOut[9] = 'i';			
+			cmdOut[9] = 'i';
+			// put character in ring buffer
+			// for now, don't worry about overwrite because processing should be way faster than receiving
+			*recBufInPtr++ = receiveByte;
+			if (recBufInPtr >= (recBuf + recBufLen)) {
+				recBufInPtr = recBuf;
+			}
 			// for testing, just copy it to the start of the output buffer
 			cmdOut[0] = receiveByte;
 			setupRxCapture(); // reset and exit
