@@ -48,6 +48,8 @@ void wait200ms(void);
 void wait1sec(void);
 void sendSetTimeCommand(void);
 void setupRxCapture(void);
+void restoreCmdDefault(void);
+void copyNMEAtoCmd(void);
 
 static volatile union Prog_status // Program status bit flags
 {
@@ -106,58 +108,12 @@ int main(void)
 		// wait for interrupt to set flag high
 		while(Prog_status.gps_Request_Active == 0) { // blink slow
 			// for testing, overwrite default output message with what's received in the NMEA buffer
-			{
-				char *startPtr, *endPtr, *tmpCmdPtr;
-				startPtr = recBuf; // point to start
-				tmpCmdPtr = cmdOut;
-				// cleanly copy the current position of the NMEA buffer pointer
-				cli();
-				endPtr = recBufInPtr;
-				sei();
-				while (startPtr < endPtr) { // copy over the characters
-					*tmpCmdPtr++ = *startPtr++;
-				}
-				// finish off the string with \n\r\n\r\0
-				*tmpCmdPtr++ = '\n';
-				*tmpCmdPtr++ = '\r';
-				*tmpCmdPtr++ = '\n';
-				*tmpCmdPtr++ = '\r';
-				*tmpCmdPtr++ = '\0';
-			}
+			copyNMEAtoCmd();
 			// for testing, send a dummy string, as if the set-time command
 			sendSetTimeCommand();
 			wait1sec();
+			restoreCmdDefault();
 			output_high(PORTA, LED);
-			// restore the output buffer to its default 't2016-03-19 20:30:01 -08'
-			cmdOut[0] = 't';
-			cmdOut[1] = '2';
-			cmdOut[2] = '0';
-			cmdOut[3] = '1';
-			cmdOut[4] = '6';
-			cmdOut[5] = '-';
-			cmdOut[6] = '0';
-			cmdOut[7] = '3';
-			cmdOut[8] = '-';
-			cmdOut[9] = '1';
-			cmdOut[10] = '0';
-			cmdOut[11] = ' ';
-			cmdOut[12] = '2';
-			cmdOut[13] = '0';
-			cmdOut[14] = ':';
-			cmdOut[15] = '3';
-			cmdOut[16] = '0';
-			cmdOut[17] = ':';
-			cmdOut[18] = '0';
-			cmdOut[19] = '1';
-			cmdOut[20] = ' ';
-			cmdOut[21] = '-';
-			cmdOut[22] = '0';
-			cmdOut[23] = '8';
-			cmdOut[24] = '\n';
-			cmdOut[25] = '\r';
-			cmdOut[26] = '\n';
-			cmdOut[27] = '\r';
-			cmdOut[28] = '\0';
 			wait1sec();
 			output_low(PORTA, LED);
 		}
@@ -307,6 +263,59 @@ void setupRxCapture(void) {
 	cli(); // temporarily disable interrupts
 	GIMSK |= (1<<PCIE0); // enable pin change 0
 	sei(); // re-enable interrupts
+}
+
+void restoreCmdDefault(void) {
+	// restore the output buffer to its default 't2016-03-19 20:30:01 -08'
+	cmdOut[0] = 't';
+	cmdOut[1] = '2';
+	cmdOut[2] = '0';
+	cmdOut[3] = '1';
+	cmdOut[4] = '6';
+	cmdOut[5] = '-';
+	cmdOut[6] = '0';
+	cmdOut[7] = '3';
+	cmdOut[8] = '-';
+	cmdOut[9] = '1';
+	cmdOut[10] = '0';
+	cmdOut[11] = ' ';
+	cmdOut[12] = '2';
+	cmdOut[13] = '0';
+	cmdOut[14] = ':';
+	cmdOut[15] = '3';
+	cmdOut[16] = '0';
+	cmdOut[17] = ':';
+	cmdOut[18] = '0';
+	cmdOut[19] = '1';
+	cmdOut[20] = ' ';
+	cmdOut[21] = '-';
+	cmdOut[22] = '0';
+	cmdOut[23] = '8';
+	cmdOut[24] = '\n';
+	cmdOut[25] = '\r';
+	cmdOut[26] = '\n';
+	cmdOut[27] = '\r';
+	cmdOut[28] = '\0';
+}
+
+void copyNMEAtoCmd(void) {
+	// for testing, overwrite default output message with what's received in the NMEA buffer
+	char *startPtr, *endPtr, *tmpCmdPtr;
+	startPtr = recBuf; // point to start
+	tmpCmdPtr = cmdOut;
+	// cleanly copy the current position of the NMEA buffer pointer
+	cli();
+	endPtr = recBufInPtr;
+	sei();
+	while (startPtr < endPtr) { // copy over the characters
+		*tmpCmdPtr++ = *startPtr++;
+	}
+	// finish off the string with \n\r\n\r\0
+	*tmpCmdPtr++ = '\n';
+	*tmpCmdPtr++ = '\r';
+	*tmpCmdPtr++ = '\n';
+	*tmpCmdPtr++ = '\r';
+	*tmpCmdPtr++ = '\0';
 }
 
 ISR(EXT_INT0_vect)
