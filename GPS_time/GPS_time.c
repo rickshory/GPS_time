@@ -289,8 +289,6 @@ void setupRxCapture(void) {
 	cli(); // temporarily disable interrupts
 	GIMSK |= (1<<PCIE0); // enable pin change 0
 	sei(); // re-enable interrupts
-	// diagnostics that this happened
-	cmdOut[1] = 'a';
 }
 
 ISR(EXT_INT0_vect)
@@ -381,8 +379,6 @@ ISR(TIM0_COMPA_vect) {
 }
 
 ISR(PCINT0_vect) {
-	// diagnostics that this happened
-	cmdOut[2] = 'b';
 	// this should be the falling edge of the start bit of the received serial byte
 	rCvBitCount = 0;
 	if (PORTA & (1<<RX_GPS_NMEA)) { // if high, this is not a valid start bit
@@ -427,8 +423,6 @@ ISR(PCINT0_vect) {
 	TIFR1 |= (1<<OCF1A);
 	TIMSK1 |= (1<<OCIE1A); // enable timer 1 A match interrupt
 	sei(); // re-enable interrupts
-	// diagnostics that this happened
-	cmdOut[3] = 'c';
 }
 
 ISR(TIM1_COMPA_vect) {
@@ -440,12 +434,8 @@ ISR(TIM1_COMPA_vect) {
 	} else {
 		Prog_status.cur_Rx_Bit = 0;
 	}
-	// diagnostics that this happened
-	cmdOut[4] = 'd';
 	if (rCvBitCount == 0) {
 		receiveByte = 0;
-		// diagnostics that this happened
-		cmdOut[5] = 'e';
 		// we have timed the first half-bit and should be in the middle of the start bit
 		if (Prog_status.cur_Rx_Bit == 1) {
 			// invalid, pin should still be low
@@ -459,18 +449,12 @@ ISR(TIM1_COMPA_vect) {
 			rCvBitCount++;
 		}
 	} else if (rCvBitCount > 8) { // done receiving byte, this should be the stop bit
-		// diagnostics that this happened
-		cmdOut[6] = 'f';
 		if (Prog_status.cur_Rx_Bit == 0) { // not a valid stop bit
-			// diagnostics that this happened
-			cmdOut[8] = 'h';
 			// for testing, display whatever byte we got
 			cmdOut[21] = receiveByte;
 			setupRxCapture(); // reset and exit
 			return;			
 		} else { // assume a valid byte
-			// diagnostics that this happened
-			cmdOut[9] = 'i';
 			// store character
 			if (receiveByte == '$') { // beginning of NMEA sentence
 				recBufInPtr = recBuf; // point to start of buffer
@@ -486,8 +470,6 @@ ISR(TIM1_COMPA_vect) {
 			return;
 		}
 	} else { // one of the data bits
-		// diagnostics that this happened
-		cmdOut[7] = 'g';
 		// byte starts as all zeros, so only set ones
 		if (Prog_status.cur_Rx_Bit == 1) {
 			receiveByte |= (1<<(rCvBitCount-1));
