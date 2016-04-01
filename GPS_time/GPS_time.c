@@ -131,10 +131,12 @@ int main(void)
 
 		wait1sec();
 		// wait for interrupt to set flag low
-		while(Prog_status.gps_Request_Active == 1) { // blink fast
+		while(Prog_status.gps_Request_Active == 1) { // blink slower
 			wait200ms();
+			wait1sec();
 			output_high(PORTA, LED);
 			wait200ms();
+			wait1sec();
 			output_low(PORTA, LED);
 		}
 		// INT0 interrupt has set flag low
