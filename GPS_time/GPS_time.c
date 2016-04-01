@@ -132,8 +132,12 @@ int main(void)
 		wait1sec();
 		// wait for interrupt to set flag low
 		while(Prog_status.gps_Request_Active == 1) { // blink slower
+			copyNMEAtoCmd();
+			// for testing, send a dummy string, as if the set-time command
+			sendSetTimeCommand();
 			wait200ms();
 			wait1sec();
+			restoreCmdDefault();
 			output_high(PORTA, LED);
 			wait200ms();
 			wait1sec();
