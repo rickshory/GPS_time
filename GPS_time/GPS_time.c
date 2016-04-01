@@ -471,11 +471,14 @@ ISR(TIM1_COMPA_vect) {
 		} else { // assume a valid byte
 			// diagnostics that this happened
 			cmdOut[9] = 'i';
-			// put character in ring buffer
-			// for now, don't worry about overwrite because processing should be way faster than receiving
-			*recBufInPtr++ = receiveByte;
+			// store character
+			if (receiveByte == '$') { // beginning of NMEA sentence
+				recBufInPtr = recBuf; // point to start of buffer
+			}
+			*recBufInPtr++ = receiveByte; // put character in buffer
+			// if overrun for some reason, wrap; probably bad data anyway and will be repeated
 			if (recBufInPtr >= (recBuf + recBufLen)) {
-				recBufInPtr = recBuf;
+				recBufInPtr = recBuf; // wrap overflow to start of buffer
 			}
 			// for testing, just copy it to the start of the output buffer
 			cmdOut[0] = receiveByte;
