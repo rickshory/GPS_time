@@ -66,17 +66,16 @@ static volatile union Prog_status // Program status bit flags
 } Prog_status = {0};
 
 static volatile uint8_t xMitBitCount=0, rCvBitCount = 0;
-static volatile char cmdOut[50] = "t2016-03-19 20:30:01 -08\n\r\n\r\0";
-static volatile char *cmdOutPtr;
 static volatile char receiveByte;
 static volatile char recBuf[recBufLen];
-static volatile char *recBufInPtr, *recBufOutPtr;
+static volatile char *recBufInPtr;
+static volatile char cmdOut[recBufLen] = "t2016-03-19 20:30:01 -08\n\r\n\r\0";
+static volatile char *cmdOutPtr;
 
 
 int main(void)
 {
-	recBufInPtr = recBuf; // start off with both pointers at start of buffer
-	recBufOutPtr = recBuf;
+	recBufInPtr = recBuf; // set pointer to start of buffer
 	// assure time-request signal from main starts high
 	set_input(DDRB, TIME_REQ); // set as input
 	output_high(PORTB, TIME_REQ); // write to the port bit to enable the pull-up resistor
@@ -106,6 +105,25 @@ int main(void)
 		setupRxCapture();
 		// wait for interrupt to set flag high
 		while(Prog_status.gps_Request_Active == 0) { // blink slow
+			// for testing, overwrite default output message with what's received in the NMEA buffer
+			{
+				char *startPtr, *endPtr, *tmpCmdPtr;
+				startPtr = recBuf; // point to start
+				tmpCmdPtr = cmdOut;
+				// cleanly copy the current position of the NMEA buffer pointer
+				cli();
+				endPtr = recBufInPtr;
+				sei();
+				while (startPtr < endPtr) { // copy over the characters
+					*tmpCmdPtr++ = *startPtr++;
+				}
+				// finish off the string with \n\r\n\r\0
+				*tmpCmdPtr++ = '\n';
+				*tmpCmdPtr++ = '\r';
+				*tmpCmdPtr++ = '\n';
+				*tmpCmdPtr++ = '\r';
+				*tmpCmdPtr++ = '\0';
+			}
 			// for testing, send a dummy string, as if the set-time command
 			sendSetTimeCommand();
 			wait1sec();
