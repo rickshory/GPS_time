@@ -108,7 +108,7 @@ int main(void)
 		// wait for interrupt to set flag high
 		while(Prog_status.gps_Request_Active == 0) { // blink slow
 			// for testing, overwrite default output message with what's received in the NMEA buffer
-			copyNMEAtoCmd();
+//			copyNMEAtoCmd();
 			// for testing, send a dummy string, as if the set-time command
 			sendSetTimeCommand();
 			wait1sec();
@@ -483,8 +483,8 @@ ISR(TIM1_COMPA_vect) {
 		}
 	} else if (rCvBitCount > 8) { // done receiving byte, this should be the stop bit
 		if (Prog_status.cur_Rx_Bit == 0) { // not a valid stop bit
-			// for testing, display whatever byte we got
-			cmdOut[21] = receiveByte;
+//			// for testing, display whatever byte we got
+//			cmdOut[21] = receiveByte;
 			setupRxCapture(); // reset and exit
 			return;			
 		} else { // assume a valid byte
@@ -497,8 +497,8 @@ ISR(TIM1_COMPA_vect) {
 			if (recBufInPtr >= (recBuf + recBufLen)) {
 				recBufInPtr = recBuf; // wrap overflow to start of buffer
 			}
-			// for testing, just copy it to the start of the output buffer
-			cmdOut[0] = receiveByte;
+//			// for testing, just copy it to the start of the output buffer
+//			cmdOut[0] = receiveByte;
 			setupRxCapture(); // reset and exit
 			return;
 		}
@@ -506,11 +506,11 @@ ISR(TIM1_COMPA_vect) {
 		// byte starts as all zeros, so only set ones
 		if (Prog_status.cur_Rx_Bit == 1) {
 			receiveByte |= (1<<(rCvBitCount-1));
-			// diagnostics
-			cmdOut[20 - rCvBitCount] = '1';
+//			// diagnostics
+//			cmdOut[20 - rCvBitCount] = '1';
 		} else {
-			// diagnostics
-			cmdOut[20 - rCvBitCount] = '0';			
+//			// diagnostics
+//			cmdOut[20 - rCvBitCount] = '0';			
 		}
 		rCvBitCount++;
 	}
