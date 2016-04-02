@@ -108,7 +108,7 @@ int main(void)
 		// wait for interrupt to set flag high
 		while(Prog_status.gps_Request_Active == 0) { // blink slow
 			// for testing, overwrite default output message with what's received in the NMEA buffer
-//			copyNMEAtoCmd();
+			copyNMEAtoCmd();
 			// for testing, send a dummy string, as if the set-time command
 			sendSetTimeCommand();
 			wait1sec();
@@ -313,6 +313,7 @@ void copyNMEAtoCmd(void) {
 	cli();
 	endPtr = recBufInPtr;
 	sei();
+	if (endPtr == startPtr) return; // if nothing, leave as-is
 	while (startPtr < endPtr) { // copy over the characters
 		*tmpCmdPtr++ = *startPtr++;
 	}
