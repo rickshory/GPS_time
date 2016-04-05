@@ -323,6 +323,10 @@ void copyNMEAtoCmd(void) {
 	*tmpCmdPtr++ = '\n';
 	*tmpCmdPtr++ = '\r';
 	*tmpCmdPtr++ = '\0';
+	// to emulate parsing, reset NMEA string
+	cli();
+	recBufInPtr = recBuf;
+	sei();
 }
 
 ISR(EXT_INT0_vect)
