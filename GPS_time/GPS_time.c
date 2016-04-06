@@ -50,6 +50,7 @@ void sendSetTimeCommand(void);
 void setupRxCapture(void);
 void restoreCmdDefault(void);
 void copyNMEAtoCmd(void);
+int parseNMEA(void);
 
 static volatile union Prog_status // Program status bit flags
 {
@@ -91,19 +92,19 @@ A            Navigation receiver warning A = OK, V = warning
 
 // NMEA sentence, for example:
 //$GPRMC,110919.000,A,4532.1047,N,12234.3348,W,1.98,169.54,090316,,,A*77
-static volatile char *sentenceType; // ignore all but "GPRMC"
-static volatile char *timeStamp; // hhmmss.sss
-static volatile char *isValid; // validity 'A'=ok, 'V'=invalid
-static volatile char *curLat; // current Latitude 
-static volatile char *isNorthOrSouth; // 'N' or 'S'
-static volatile char *curLon; // current Longitude
-static volatile char *isEastOrWest; // 'E' or 'W'
-static volatile char *speedKnots; // Speed in knots
-static volatile char *trueCourse; // True course
-static volatile char *dateStamp; // ddmmyy
-static volatile char *magVar; // Variation
-static volatile char *varEastOrWest; // East/West of magnetic variation
-static volatile char *checkSum; // checksum
+static volatile char *ptrSentenceType = NULL; // ignore all but "GPRMC"
+static volatile char *ptrTimeStamp = NULL; // hhmmss.sss
+static volatile char *ptrIsValid = NULL; // validity 'A'=ok, 'V'=invalid
+static volatile char *ptrCurLat = NULL; // current Latitude 
+static volatile char *ptrIsNorthOrSouth = NULL; // 'N' or 'S'
+static volatile char *ptrCurLon = NULL; // current Longitude
+static volatile char *ptrIsEastOrWest = NULL; // 'E' or 'W'
+static volatile char *ptrSpeedKnots = NULL; // Speed in knots
+static volatile char *ptrTrueCourse = NULL; // True course
+static volatile char *ptrDateStamp = NULL; // ddmmyy
+static volatile char *ptrMagVar = NULL; // Variation
+static volatile char *ptrVarEastOrWest = NULL; // East/West of magnetic variation
+static volatile char *ptrCheckSum = NULL; // checksum
 
 int main(void)
 {
@@ -299,6 +300,22 @@ void setupRxCapture(void) {
 	cli(); // temporarily disable interrupts
 	GIMSK |= (1<<PCIE0); // enable pin change 0
 	sei(); // re-enable interrupts
+}
+
+int parseNMEA(void) {
+	char *endParsePtr, *parsePtr = recBuf;
+	char *curPtr = ptrSentenceType;
+	// cleanly copy the current position of the NMEA buffer pointer
+	cli();
+	endParsePtr = recBufInPtr;
+	sei();
+	while (1) {
+		if (parsePtr++ > endParsePtr) {
+			return 0;
+		}
+		
+	}
+	return 1;
 }
 
 void restoreCmdDefault(void) {
