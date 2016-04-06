@@ -74,6 +74,36 @@ static volatile char *recBufInPtr;
 static volatile char cmdOut[recBufLen] = "t2016-03-19 20:30:01 -08\n\r\n\r\0";
 static volatile char *cmdOutPtr;
 
+/*
+example 
+$GPRMC,225446,A,4916.45,N,12311.12,W,000.5,054.7,191194,020.3,E*68
+
+225446       Time of fix 22:54:46 UTC
+A            Navigation receiver warning A = OK, V = warning
+4916.45,N    Latitude 49 deg. 16.45 min North
+12311.12,W   Longitude 123 deg. 11.12 min West
+000.5        Speed over ground, Knots
+054.7        Course Made Good, True
+191194       Date of fix  19 November 1994
+020.3,E      Magnetic variation 20.3 deg East
+*68          mandatory checksum
+*/
+
+// NMEA sentence, for example:
+//$GPRMC,110919.000,A,4532.1047,N,12234.3348,W,1.98,169.54,090316,,,A*77
+static volatile char *sentenceType; // ignore all but "GPRMC"
+static volatile char *timeStamp; // hhmmss.sss
+static volatile char *isValid; // validity 'A'=ok, 'V'=invalid
+static volatile char *curLat; // current Latitude 
+static volatile char *isNorthOrSouth; // 'N' or 'S'
+static volatile char *curLon; // current Longitude
+static volatile char *isEastOrWest; // 'E' or 'W'
+static volatile char *speedKnots; // Speed in knots
+static volatile char *trueCourse; // True course
+static volatile char *dateStamp; // ddmmyy
+static volatile char *magVar; // Variation
+static volatile char *varEastOrWest; // East/West of magnetic variation
+static volatile char *checkSum; // checksum
 
 int main(void)
 {
@@ -323,10 +353,12 @@ void copyNMEAtoCmd(void) {
 	*tmpCmdPtr++ = '\n';
 	*tmpCmdPtr++ = '\r';
 	*tmpCmdPtr++ = '\0';
+/*
 	// to emulate parsing, reset NMEA string
 	cli();
 	recBufInPtr = recBuf;
 	sei();
+*/
 }
 
 ISR(EXT_INT0_vect)
