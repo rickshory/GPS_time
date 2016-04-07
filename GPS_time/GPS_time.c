@@ -318,12 +318,13 @@ int parseNMEA(void) {
 				Prog_status.new_NMEA_Field = 0; // the field is now no longer new
 			}			
 		}
-		if (fldCounter > sentenceType) { // if we've got sentence type complete, test for "GPRMC"
-			if (!((*(NMEA_Ptrs[sentenceType]) == 'G')) & 
-			(*(NMEA_Ptrs[sentenceType] + 1) == 'P') & 
-			(*(NMEA_Ptrs[sentenceType] + 2) == 'R') & 
-			(*(NMEA_Ptrs[sentenceType] + 3) == 'M') & 
-			(*(NMEA_Ptrs[sentenceType] + 4) == 'C')) {
+		if (fldCounter > sentenceType) { // if we've got sentence-type complete, test for "GPRMC"
+			// optimize test to fail early if invalid
+			if ((*(NMEA_Ptrs[sentenceType] + 4) != 'C') | 
+			(*(NMEA_Ptrs[sentenceType] + 3) == 'M') | 
+			(*(NMEA_Ptrs[sentenceType] + 2) == 'R') | 
+			(*(NMEA_Ptrs[sentenceType] + 1) == 'P') | 
+			(*(NMEA_Ptrs[sentenceType]) == 'G')) {
 				return 2; // not a sentence type we can use
 			}
 		}
