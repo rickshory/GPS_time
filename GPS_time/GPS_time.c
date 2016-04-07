@@ -318,9 +318,25 @@ int parseNMEA(void) {
 				Prog_status.new_NMEA_Field = 0; // the field is now no longer new
 			}			
 		}
-		
+		if (fldCounter > sentenceType) { // if we've got sentence type complete, test for "GPRMC"
+			if (!((*(NMEA_Ptrs[sentenceType]) == 'G')) & 
+			(*(NMEA_Ptrs[sentenceType] + 1) == 'P') & 
+			(*(NMEA_Ptrs[sentenceType] + 2) == 'R') & 
+			(*(NMEA_Ptrs[sentenceType] + 3) == 'M') & 
+			(*(NMEA_Ptrs[sentenceType] + 4) == 'C')) {
+				return 2; // not a sentence type we can use
+			}
+		}
+		if (fldCounter > isValid) { // if we've got the validity char, test it
+			if (*(NMEA_Ptrs[sentenceType]) != 'A') {
+				return 3; // GPS says data not valid
+			}
+		}
+		if (fldCounter > dateStamp) { // don't need any fields after this
+			return 0;
+		}
 	}
-	return 0;
+	
 }
 
 void restoreCmdDefault(void) {
