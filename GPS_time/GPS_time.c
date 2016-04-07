@@ -323,17 +323,17 @@ int parseNMEA(void) {
 		}
 		if (fldCounter > sentenceType) { // if we've got sentence-type complete, test for "GPRMC"
 			// optimize test to fail early if invalid
-			if ((*(NMEA_Ptrs[sentenceType] + 4) != 'C') | 
-			(*(NMEA_Ptrs[sentenceType] + 3) == 'M') | 
-			(*(NMEA_Ptrs[sentenceType] + 2) == 'R') | 
-			(*(NMEA_Ptrs[sentenceType] + 1) == 'P') | 
-			(*(NMEA_Ptrs[sentenceType]) == 'G')) {
-				return 2; // not a sentence type we can use
-			}
+			// for testing break down conditions 
+			if (*(NMEA_Ptrs[sentenceType] + 4) != 'C') return 6;
+			if (*(NMEA_Ptrs[sentenceType] + 3) != 'M') return 5;
+			if (*(NMEA_Ptrs[sentenceType] + 2) != 'R') return 4;
+			if (*(NMEA_Ptrs[sentenceType] + 1) != 'P') return 3;
+			if (*(NMEA_Ptrs[sentenceType]) != 'G') return 2; 
+			// not a sentence type we can use
 		}
 		if (fldCounter > isValid) { // if we've got the validity char, test it
-			if (*(NMEA_Ptrs[sentenceType]) != 'A') {
-				return 3; // GPS says data not valid
+			if (*(NMEA_Ptrs[isValid]) != 'A') {
+				return 9; // GPS says data not valid
 			}
 		}
 		if (fldCounter > dateStamp) { // don't need any fields after this
@@ -379,7 +379,7 @@ void restoreCmdDefault(void) {
 void signalNMEAtoCmd(void) {
 	// for testing, overwrite the 1st char in the output message with the results of the parsing function
 	int parseResult = parseNMEA();
-	recBuf[0] = (char)(parseResult + '0');
+	cmdOut[0] = (char)(parseResult + '0');
 }
 
 void copyNMEAtoCmd(void) {
