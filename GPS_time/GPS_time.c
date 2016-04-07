@@ -294,7 +294,7 @@ void setupRxCapture(void) {
 
 int parseNMEA(void) {
 	char *endParsePtr, *parsePtr = recBuf;
-	int fldCounter = sentenceType;
+	int fldCounter = sentenceType; // 0th NMEA field
 	// cleanly get the current position of the NMEA buffer pointer
 	cli();
 	endParsePtr = recBufInPtr;
@@ -305,19 +305,20 @@ int parseNMEA(void) {
 			return 1; // exit, flag that it failed
 		}
 		if (*parsePtr == ',') { // the field delimiter
-			if (Prog_status.new_NMEA_Field == 1) { // we do not yet have anything for this field
-				
-			} else {
-				
+			if (Prog_status.new_NMEA_Field == 1) { // we just started working on a field and
+				// encountered a comma indicating the next field, so the current field is empty
+				NMEA_Ptrs[fldCounter] = NULL;
 			}
+			fldCounter++; // point to the next field
+			Prog_status.new_NMEA_Field = 1; // working on a new field
 		} else { // not a comma
 			if (Prog_status.new_NMEA_Field == 1) { // we are starting a new field
 				// we have a non-comma character, so the field contains something
-				NMEA_Ptrs[fldCounter] = parsePtr;
-			} else {
-				
+				NMEA_Ptrs[fldCounter] = parsePtr; // plant the field pointer here
+				Prog_status.new_NMEA_Field = 0; // the field is now no longer new
 			}			
 		}
+		
 	}
 	return 0;
 }
