@@ -50,6 +50,7 @@ void sendSetTimeCommand(void);
 void setupRxCapture(void);
 void restoreCmdDefault(void);
 void copyNMEAtoCmd(void);
+void signalNMEAtoCmd(void);
 int parseNMEA(void);
 
 /*
@@ -129,7 +130,8 @@ int main(void)
 		// wait for interrupt to set flag high
 		while(Prog_status.gps_Request_Active == 0) { // blink slow
 			// for testing, overwrite default output message with what's received in the NMEA buffer
-			copyNMEAtoCmd();
+//			copyNMEAtoCmd();
+			signalNMEAtoCmd();
 			// for testing, send a dummy string, as if the set-time command
 			sendSetTimeCommand();
 			wait1sec();
@@ -153,7 +155,8 @@ int main(void)
 		wait1sec();
 		// wait for interrupt to set flag low
 		while(Prog_status.gps_Request_Active == 1) { // blink slower
-			copyNMEAtoCmd();
+//			copyNMEAtoCmd();
+			signalNMEAtoCmd();
 			// for testing, send a dummy string, as if the set-time command
 			sendSetTimeCommand();
 			wait200ms();
@@ -371,6 +374,12 @@ void restoreCmdDefault(void) {
 	cmdOut[26] = '\n';
 	cmdOut[27] = '\r';
 	cmdOut[28] = '\0';
+}
+
+void signalNMEAtoCmd(void) {
+	// for testing, overwrite the 1st char in the output message with the results of the parsing function
+	int parseResult = parseNMEA();
+	recBuf[0] = (char)(parseResult + '0');
 }
 
 void copyNMEAtoCmd(void) {
