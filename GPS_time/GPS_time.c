@@ -52,6 +52,26 @@ void restoreCmdDefault(void);
 void copyNMEAtoCmd(void);
 int parseNMEA(void);
 
+/*
+example
+$GPRMC,225446,A,4916.45,N,12311.12,W,000.5,054.7,191194,020.3,E*68
+
+225446       Time of fix 22:54:46 UTC
+A            Navigation receiver warning A = OK, V = warning
+4916.45,N    Latitude 49 deg. 16.45 min North
+12311.12,W   Longitude 123 deg. 11.12 min West
+000.5        Speed over ground, Knots
+054.7        Course Made Good, True
+191194       Date of fix  19 November 1994
+020.3,E      Magnetic variation 20.3 deg East
+*68          mandatory checksum
+*/
+
+// NMEA sentence, for example:
+//$GPRMC,110919.000,A,4532.1047,N,12234.3348,W,1.98,169.54,090316,,,A*77
+enum NMEA_fields {sentenceType, timeStamp, isValid, curLat, isNorthOrSouth, curLon, isEastOrWest,
+	speedKnots, trueCourse, dateStamp, magVar, varEastOrWest, checkSum};
+
 static volatile union Prog_status // Program status bit flags
 {
     unsigned char status;
@@ -63,7 +83,7 @@ static volatile union Prog_status // Program status bit flags
         unsigned char listen_To_GPS:1;
         unsigned char cur_Rx_Bit:1;
         unsigned char cmd_Tx_ongoing:1;
-        unsigned char flag6:1;
+        unsigned char new_NMEA_Field:1;
         unsigned char flag7:1;
     };
 } Prog_status = {0};
@@ -93,18 +113,7 @@ A            Navigation receiver warning A = OK, V = warning
 // NMEA sentence, for example:
 //$GPRMC,110919.000,A,4532.1047,N,12234.3348,W,1.98,169.54,090316,,,A*77
 static volatile char *ptrSentenceType = NULL; // ignore all but "GPRMC"
-static volatile char *ptrTimeStamp = NULL; // hhmmss.sss
-static volatile char *ptrIsValid = NULL; // validity 'A'=ok, 'V'=invalid
-static volatile char *ptrCurLat = NULL; // current Latitude 
-static volatile char *ptrIsNorthOrSouth = NULL; // 'N' or 'S'
-static volatile char *ptrCurLon = NULL; // current Longitude
-static volatile char *ptrIsEastOrWest = NULL; // 'E' or 'W'
-static volatile char *ptrSpeedKnots = NULL; // Speed in knots
-static volatile char *ptrTrueCourse = NULL; // True course
-static volatile char *ptrDateStamp = NULL; // ddmmyy
-static volatile char *ptrMagVar = NULL; // Variation
-static volatile char *ptrVarEastOrWest = NULL; // East/West of magnetic variation
-static volatile char *ptrCheckSum = NULL; // checksum
+
 
 int main(void)
 {
@@ -304,18 +313,32 @@ void setupRxCapture(void) {
 
 int parseNMEA(void) {
 	char *endParsePtr, *parsePtr = recBuf;
-	char *curPtr = ptrSentenceType;
-	// cleanly copy the current position of the NMEA buffer pointer
+	char **curPtr = &ptrSentenceType; // start by pointing to the pointer to the first NMEA field, sentence type
+	// cleanly get the current position of the NMEA buffer pointer
 	cli();
 	endParsePtr = recBufInPtr;
 	sei();
+	Prog_status.new_NMEA_Field = 1; // we are starting to work on the first field
 	while (1) {
-		if (parsePtr++ > endParsePtr) {
-			return 0;
+		if (parsePtr++ > endParsePtr) { // if we can't complete the parsing
+			return 1; // exit, flag that it failed
 		}
-		
+		if (*parsePtr = ',') { // the field delimiter
+			if (Prog_status.new_NMEA_Field == 1) { // we do not yet have anything for this field
+				
+			} else {
+				
+			}
+		} else { // not a comma
+			if (Prog_status.new_NMEA_Field == 1) { // we are starting a new field
+				// we have a non-comma character, so the field contains something
+//				&parsePtr = curPtr;
+			} else {
+				
+			}			
+		}
 	}
-	return 1;
+	return 0;
 }
 
 void restoreCmdDefault(void) {
