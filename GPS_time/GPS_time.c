@@ -94,26 +94,7 @@ static volatile char recBuf[recBufLen];
 static volatile char *recBufInPtr;
 static volatile char cmdOut[recBufLen] = "t2016-03-19 20:30:01 -08\n\r\n\r\0";
 static volatile char *cmdOutPtr;
-
-/*
-example 
-$GPRMC,225446,A,4916.45,N,12311.12,W,000.5,054.7,191194,020.3,E*68
-
-225446       Time of fix 22:54:46 UTC
-A            Navigation receiver warning A = OK, V = warning
-4916.45,N    Latitude 49 deg. 16.45 min North
-12311.12,W   Longitude 123 deg. 11.12 min West
-000.5        Speed over ground, Knots
-054.7        Course Made Good, True
-191194       Date of fix  19 November 1994
-020.3,E      Magnetic variation 20.3 deg East
-*68          mandatory checksum
-*/
-
-// NMEA sentence, for example:
-//$GPRMC,110919.000,A,4532.1047,N,12234.3348,W,1.98,169.54,090316,,,A*77
-static volatile char *ptrSentenceType = NULL; // ignore all but "GPRMC"
-
+static volatile char *NMEA_Ptrs[13]; // array of pointers to field positions within the captured NMEA sentence
 
 int main(void)
 {
@@ -313,7 +294,7 @@ void setupRxCapture(void) {
 
 int parseNMEA(void) {
 	char *endParsePtr, *parsePtr = recBuf;
-	char **curPtr = &ptrSentenceType; // start by pointing to the pointer to the first NMEA field, sentence type
+	int fldCounter = sentenceType;
 	// cleanly get the current position of the NMEA buffer pointer
 	cli();
 	endParsePtr = recBufInPtr;
@@ -323,7 +304,7 @@ int parseNMEA(void) {
 		if (parsePtr++ > endParsePtr) { // if we can't complete the parsing
 			return 1; // exit, flag that it failed
 		}
-		if (*parsePtr = ',') { // the field delimiter
+		if (*parsePtr == ',') { // the field delimiter
 			if (Prog_status.new_NMEA_Field == 1) { // we do not yet have anything for this field
 				
 			} else {
@@ -332,7 +313,7 @@ int parseNMEA(void) {
 		} else { // not a comma
 			if (Prog_status.new_NMEA_Field == 1) { // we are starting a new field
 				// we have a non-comma character, so the field contains something
-//				&parsePtr = curPtr;
+				NMEA_Ptrs[fldCounter] = parsePtr;
 			} else {
 				
 			}			
