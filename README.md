@@ -1,24 +1,17 @@
 GPS_time
 ======
-**GPS_time** is a module of Greenlogger project.
- GPS_time runs in a separate microcontroller.
- It manages power, startup, and shutdown of the GPS hardware
-as well as keeping itself in deep sleep most of the time.
- It turns on the GPS, waits for a stable time signal, then
-returns that as a set-time command to the main microcontroller.
- In this way, keeps the instrument's real time clock current
-avoiding drift over months/years of unattended operation, or
-recovery from solar power depletion during polar night.
+ This project is superseded by **GPS_time_841**
+Both these are modules of the Greenlogger project.
+ Although **GPS_time** is not complete, it is retained as an example of implementing UARTS in software.
+ Development continues in the project **GPS_time_841**, using the
+ATTiny841 microcontroller in place of the ATTiny84.
+ The ATTiny841 has built in UARTS, and is a better overall solution.
+ The ATTiny84, used for initial development, required implemnting UARTS in code and serves as an example of how to do this.
+ The overall purpose is to capture serial data from a GPS, extract only the time signal, and pass this on to the main controller, to keep its Real Time Clock current.
 
 #### Works on
 * AVR microcontroller
-initial development on ATmega1284P
-will probably migrate to smaller chip to save cost and space,
-a device that has only what's needed:
-2 UARTs
-I2C
-about half a dozen general i/o lines
-
+ATTiny84
 
 ## Contact
 #### Developer/Company
